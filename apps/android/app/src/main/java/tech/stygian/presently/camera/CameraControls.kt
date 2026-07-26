@@ -8,24 +8,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -35,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -51,33 +53,47 @@ internal fun CameraTopBar(
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 3.dp,
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(104.dp)
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Black.copy(alpha = 0.58f),
+                    1f to Color.Transparent,
+                ),
+            ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "Presently",
-                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.weight(1f))
-            FilledTonalIconButton(onClick = onSettings) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Camera settings",
-                )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
+            ) {
+                IconButton(onClick = onSettings) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Camera settings",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CameraControls(
     zoomRatio: Float,
@@ -95,31 +111,61 @@ internal fun CameraControls(
         }
     }
 
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        tonalElevation = 8.dp,
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(224.dp)
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.45f to Color.Black.copy(alpha = 0.18f),
+                    1f to Color.Black.copy(alpha = 0.72f),
+                ),
+            ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                quickZoomRatios.forEach { quickZoomRatio ->
-                    FilterChip(
-                        selected = kotlin.math.abs(zoomRatio - quickZoomRatio) < 0.05f,
-                        onClick = { onZoomSelected(quickZoomRatio) },
-                        label = {
-                            Text(
-                                text = formatZoom(quickZoomRatio),
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        },
-                    )
+            Surface(
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+            ) {
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier.padding(3.dp),
+                ) {
+                    quickZoomRatios.forEachIndexed { index, quickZoomRatio ->
+                        SegmentedButton(
+                            selected = kotlin.math.abs(
+                                zoomRatio - quickZoomRatio,
+                            ) < 0.05f,
+                            onClick = { onZoomSelected(quickZoomRatio) },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = quickZoomRatios.size,
+                            ),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                inactiveContainerColor = Color.Transparent,
+                                inactiveContentColor = MaterialTheme.colorScheme.onSurface,
+                                activeBorderColor = Color.Transparent,
+                                inactiveBorderColor = Color.Transparent,
+                            ),
+                            icon = {},
+                            label = {
+                                Text(
+                                    text = formatZoom(quickZoomRatio),
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            },
+                            modifier = Modifier.size(width = 54.dp, height = 40.dp),
+                        )
+                    }
                 }
             }
 
@@ -127,44 +173,56 @@ internal fun CameraControls(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Spacer(Modifier.size(56.dp))
+                Spacer(Modifier.size(52.dp))
+                Spacer(Modifier.weight(1f))
+                ShutterButton(onClick = onCapture)
                 Spacer(Modifier.weight(1f))
                 Surface(
-                    onClick = onCapture,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .semantics { contentDescription = "Take photo" },
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
-                    tonalElevation = 6.dp,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
                 ) {
-                    Box(modifier = Modifier.padding(9.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.onPrimary,
-                                    CircleShape,
-                                ),
+                    IconButton(
+                        onClick = onSwitchCamera,
+                        enabled = canSwitchCamera,
+                        modifier = Modifier.size(52.dp),
+                    ) {
+                        CameraSwitchGlyph(
+                            color = if (canSwitchCamera) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            },
                         )
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                FilledTonalIconButton(
-                    onClick = onSwitchCamera,
-                    enabled = canSwitchCamera,
-                    modifier = Modifier.size(56.dp),
-                ) {
-                    CameraSwitchGlyph(
-                        color = if (canSwitchCamera) {
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                        },
-                    )
-                }
             }
         }
+    }
+}
+
+@Composable
+private fun ShutterButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(
+        modifier = modifier
+            .size(78.dp)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "Take photo" },
+    ) {
+        val center = Offset(size.width / 2, size.height / 2)
+        drawCircle(
+            color = Color.White,
+            radius = size.minDimension / 2 - 2.dp.toPx(),
+            center = center,
+            style = Stroke(width = 4.dp.toPx()),
+        )
+        drawCircle(
+            color = Color.White,
+            radius = size.minDimension / 2 - 10.dp.toPx(),
+            center = center,
+        )
     }
 }
 
@@ -233,7 +291,7 @@ internal fun ReviewControls(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         modifier = modifier
             .padding(16.dp)
             .fillMaxWidth(),
