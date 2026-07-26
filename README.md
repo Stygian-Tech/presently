@@ -68,7 +68,8 @@ The stable production client ID is
 `https://oauth.presently.photo/oauth/client-metadata.json`, with native callback
 `photo.presently.oauth:/oauth/callback`. Configure the production environment
 from `services/oauth-worker/.env.example`. Vercel detects the root
-`Dockerfile.vercel`; the container listens on the platform-provided `PORT`.
+`vercel.json`, builds the service's `Dockerfile.vercel`, and routes all public
+requests to the container listening on the platform-provided `PORT`.
 
 ## Reference material
 
