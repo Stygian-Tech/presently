@@ -61,6 +61,7 @@ struct CameraScreen: View {
                 .gesture(
                     MagnifyGesture()
                         .onChanged { value in
+                            guard !camera.supportsSmartSelfieFraming else { return }
                             let startingZoom = zoomAtGestureStart ?? camera.zoomFactor
                             zoomAtGestureStart = startingZoom
                             camera.setZoomFactor(startingZoom * value.magnification)
@@ -102,21 +103,26 @@ struct CameraScreen: View {
 
     private var cameraControls: some View {
         VStack(spacing: 20) {
-            HStack(spacing: 8) {
-                ForEach(camera.quickZoomFactors, id: \.self) { zoomFactor in
-                    Button {
-                        camera.setZoomFactor(zoomFactor)
-                    } label: {
-                        Text(formatZoom(zoomFactor))
-                            .font(.caption.monospacedDigit().weight(.semibold))
-                            .foregroundStyle(
-                                abs(camera.zoomFactor - zoomFactor) < 0.05 ? .yellow : .white
-                            )
-                            .frame(width: 42, height: 32)
-                            .background(.black.opacity(0.5), in: Capsule())
+            if camera.facing == .front, camera.supportsSmartSelfieFraming {
+                Picker("Selfie framing", selection: Binding(
+                    get: { camera.selfieFramingMode },
+                    set: { camera.setSelfieFramingMode($0) }
+                )) {
+                    ForEach(SelfieFramingMode.allCases) { mode in
+                        Label(
+                            mode.title,
+                            systemImage: mode == .portrait
+                                ? "rectangle.portrait"
+                                : "rectangle"
+                        )
+                        .tag(mode)
                     }
-                    .accessibilityLabel("Zoom \(formatZoom(zoomFactor))")
                 }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 260)
+                .accessibilityHint("Changes the Center Stage photo orientation")
+            } else {
+                zoomControls
             }
 
             HStack {
@@ -160,6 +166,25 @@ struct CameraScreen: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
+    }
+
+    private var zoomControls: some View {
+        HStack(spacing: 8) {
+            ForEach(camera.quickZoomFactors, id: \.self) { zoomFactor in
+                Button {
+                    camera.setZoomFactor(zoomFactor)
+                } label: {
+                    Text(formatZoom(zoomFactor))
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(
+                            abs(camera.zoomFactor - zoomFactor) < 0.05 ? .yellow : .white
+                        )
+                        .frame(width: 42, height: 32)
+                        .background(.black.opacity(0.5), in: Capsule())
+                }
+                .accessibilityLabel("Zoom \(formatZoom(zoomFactor))")
+            }
+        }
     }
 
     @ViewBuilder

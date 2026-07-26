@@ -1,6 +1,17 @@
 @preconcurrency import AVFoundation
 import Observation
 
+enum SelfieFramingMode: String, CaseIterable, Identifiable, Sendable {
+    case portrait
+    case landscape
+
+    var id: Self { self }
+
+    var title: String {
+        rawValue.capitalized
+    }
+}
+
 @MainActor
 @Observable
 final class CameraController: NSObject {
@@ -32,6 +43,8 @@ final class CameraController: NSObject {
     var maximumZoomFactor = 1.0
     var canSwitchCamera = false
     var isSwitchingCamera = false
+    var selfieFramingMode = SelfieFramingMode.portrait
+    var supportsSmartSelfieFraming = false
 
     var quickZoomFactors: [Double] {
         [0.5, 1, 2, 3].filter {
@@ -95,9 +108,16 @@ final class CameraController: NSObject {
     }
 
     func setZoomFactor(_ requestedZoomFactor: Double) {
+        guard !supportsSmartSelfieFraming else { return }
         let zoomFactor = min(max(requestedZoomFactor, minimumZoomFactor), maximumZoomFactor)
         self.zoomFactor = zoomFactor
         cameraSession.setZoomFactor(zoomFactor)
+    }
+
+    func setSelfieFramingMode(_ mode: SelfieFramingMode) {
+        guard facing == .front, supportsSmartSelfieFraming else { return }
+        selfieFramingMode = mode
+        cameraSession.setSelfieFramingMode(mode)
     }
 
     func retake() {
@@ -109,6 +129,10 @@ final class CameraController: NSObject {
         minimumZoomFactor = capabilities.minimumZoomFactor
         maximumZoomFactor = capabilities.maximumZoomFactor
         canSwitchCamera = capabilities.canSwitchCamera
+        supportsSmartSelfieFraming = capabilities.supportsSmartSelfieFraming
+        if supportsSmartSelfieFraming {
+            selfieFramingMode = .portrait
+        }
     }
 }
 
@@ -167,6 +191,7 @@ private final class CameraSession: @unchecked Sendable {
     private var cameraInput: AVCaptureDeviceInput?
     private var zoomDisplayScale = 1.0
     private var isConfigured = false
+    private var smartFramingCoordinator: AnyObject?
 
     func start(facing: CameraController.Facing) async throws -> CameraCapabilities {
         try await sessionQueue.perform { [self] in
@@ -180,6 +205,7 @@ private final class CameraSession: @unchecked Sendable {
 
     func stop() {
         sessionQueue.perform { [self] in
+            stopSmartFraming()
             guard session.isRunning else { return }
             session.stopRunning()
         }
@@ -221,6 +247,13 @@ private final class CameraSession: @unchecked Sendable {
         }
     }
 
+    func setSelfieFramingMode(_ mode: SelfieFramingMode) {
+        guard #available(iOS 26.0, *) else { return }
+        sessionQueue.perform { [self] in
+            (smartFramingCoordinator as? SmartFramingCoordinator)?.setMode(mode)
+        }
+    }
+
     private func configure(
         facing: CameraController.Facing
     ) throws -> CameraCapabilities {
@@ -228,6 +261,7 @@ private final class CameraSession: @unchecked Sendable {
             throw facing == .back ? CameraError.noBackCamera : CameraError.noFrontCamera
         }
 
+        stopSmartFraming()
         let input = try AVCaptureDeviceInput(device: camera)
         session.beginConfiguration()
         defer { session.commitConfiguration() }
@@ -256,24 +290,48 @@ private final class CameraSession: @unchecked Sendable {
             isConfigured = true
         }
 
+        var supportsSmartSelfieFraming = false
+        try camera.lockForConfiguration()
+        if facing == .front, #available(iOS 26.0, *),
+           let smartFormat = Self.preferredSmartFramingFormat(for: camera) {
+            camera.activeFormat = smartFormat
+        }
         zoomDisplayScale = Self.zoomDisplayScale(for: camera)
         let minimumZoomFactor = Double(camera.minAvailableVideoZoomFactor) * zoomDisplayScale
         let maximumZoomFactor = Double(camera.maxAvailableVideoZoomFactor) * zoomDisplayScale
         let preferredZoomFactor = min(max(1, minimumZoomFactor), maximumZoomFactor)
-
-        try camera.lockForConfiguration()
         camera.videoZoomFactor = CGFloat(preferredZoomFactor / zoomDisplayScale)
         camera.unlockForConfiguration()
 
         self.camera = camera
         cameraInput = input
 
+        if facing == .front, #available(iOS 26.0, *),
+           camera.activeFormat.isSmartFramingSupported,
+           let coordinator = try? SmartFramingCoordinator(
+                camera: camera,
+                initialMode: .portrait
+           ) {
+            smartFramingCoordinator = coordinator
+            supportsSmartSelfieFraming = true
+        }
+
         return CameraCapabilities(
             zoomFactor: preferredZoomFactor,
             minimumZoomFactor: minimumZoomFactor,
             maximumZoomFactor: maximumZoomFactor,
-            canSwitchCamera: Self.camera(for: facing == .back ? .front : .back) != nil
+            canSwitchCamera: Self.camera(for: facing == .back ? .front : .back) != nil,
+            supportsSmartSelfieFraming: supportsSmartSelfieFraming
         )
+    }
+
+    private func stopSmartFraming() {
+        guard #available(iOS 26.0, *) else {
+            smartFramingCoordinator = nil
+            return
+        }
+        (smartFramingCoordinator as? SmartFramingCoordinator)?.stop()
+        smartFramingCoordinator = nil
     }
 
     private static func camera(
@@ -288,15 +346,42 @@ private final class CameraSession: @unchecked Sendable {
                 .builtInWideAngleCamera,
             ]
             : [
+                .builtInUltraWideCamera,
                 .builtInTrueDepthCamera,
                 .builtInWideAngleCamera,
             ]
 
-        return AVCaptureDevice.DiscoverySession(
+        let devices = AVCaptureDevice.DiscoverySession(
             deviceTypes: deviceTypes,
             mediaType: .video,
             position: position
-        ).devices.first
+        ).devices
+
+        if facing == .front, #available(iOS 26.0, *),
+           let smartFramingCamera = devices.first(where: {
+               preferredSmartFramingFormat(for: $0) != nil
+           }) {
+            return smartFramingCamera
+        }
+
+        return devices.first
+    }
+
+    @available(iOS 26.0, *)
+    private static func preferredSmartFramingFormat(
+        for camera: AVCaptureDevice
+    ) -> AVCaptureDevice.Format? {
+        camera.formats
+            .filter {
+                $0.isSmartFramingSupported &&
+                    $0.supportedDynamicAspectRatios.contains(.ratio3x4) &&
+                    $0.supportedDynamicAspectRatios.contains(.ratio4x3)
+            }
+            .max {
+                let left = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
+                let right = CMVideoFormatDescriptionGetDimensions($1.formatDescription)
+                return Int(left.width) * Int(left.height) < Int(right.width) * Int(right.height)
+            }
     }
 
     private static func zoomDisplayScale(for camera: AVCaptureDevice) -> Double {
@@ -316,6 +401,86 @@ private struct CameraCapabilities: Sendable {
     let minimumZoomFactor: Double
     let maximumZoomFactor: Double
     let canSwitchCamera: Bool
+    let supportsSmartSelfieFraming: Bool
+}
+
+@available(iOS 26.0, *)
+private final class SmartFramingCoordinator {
+    private let camera: AVCaptureDevice
+    private let monitor: AVCaptureSmartFramingMonitor
+    private var observation: NSKeyValueObservation?
+
+    init(
+        camera: AVCaptureDevice,
+        initialMode: SelfieFramingMode
+    ) throws {
+        guard let monitor = camera.smartFramingMonitor else {
+            throw CameraError.configurationFailed
+        }
+
+        self.camera = camera
+        self.monitor = monitor
+        setMode(initialMode)
+        observation = monitor.observe(\.recommendedFraming, options: [.new]) {
+            [weak self] monitor, _ in
+            guard let framing = monitor.recommendedFraming else { return }
+            self?.apply(framing)
+        }
+        try monitor.startMonitoring()
+    }
+
+    func setMode(_ mode: SelfieFramingMode) {
+        let aspectRatio = aspectRatio(for: mode)
+        monitor.enabledFramings = monitor.supportedFramings.filter {
+            $0.aspectRatio == aspectRatio
+        }
+        apply(aspectRatio: aspectRatio, zoomFactor: 1)
+    }
+
+    func stop() {
+        observation?.invalidate()
+        observation = nil
+        monitor.stopMonitoring()
+    }
+
+    private func apply(_ framing: AVCaptureFraming) {
+        apply(
+            aspectRatio: framing.aspectRatio,
+            zoomFactor: CGFloat(framing.zoomFactor)
+        )
+    }
+
+    private func apply(
+        aspectRatio: AVCaptureDevice.AspectRatio,
+        zoomFactor: CGFloat
+    ) {
+        guard camera.activeFormat.supportedDynamicAspectRatios.contains(aspectRatio) else {
+            return
+        }
+
+        do {
+            try camera.lockForConfiguration()
+            camera.setDynamicAspectRatio(aspectRatio)
+            camera.videoZoomFactor = min(
+                max(zoomFactor, camera.minAvailableVideoZoomFactor),
+                camera.maxAvailableVideoZoomFactor
+            )
+            camera.unlockForConfiguration()
+        } catch {
+            return
+        }
+    }
+
+    private func aspectRatio(
+        for mode: SelfieFramingMode
+    ) -> AVCaptureDevice.AspectRatio {
+        switch mode {
+        case .portrait:
+            .ratio3x4
+        case .landscape:
+            .ratio4x3
+        }
+    }
 }
 
 private final class PhotoCaptureDelegate: @unchecked Sendable {

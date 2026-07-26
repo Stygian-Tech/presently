@@ -66,6 +66,15 @@ struct CameraSessionQueueTests {
     }
 }
 
+struct SelfieFramingModeTests {
+    @Test
+    func exposesPortraitAndLandscapeControlsInStableOrder() {
+        #expect(SelfieFramingMode.allCases == [.portrait, .landscape])
+        #expect(SelfieFramingMode.portrait.title == "Portrait")
+        #expect(SelfieFramingMode.landscape.title == "Landscape")
+    }
+}
+
 struct SaveToPhotosPreferenceTests {
     @Test
     func alwaysSavesRegardlessOfPerPhotoChoice() {
