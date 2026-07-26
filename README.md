@@ -58,9 +58,6 @@ cd apps/android
 cd services/oauth-worker
 go test ./...
 go build ./...
-
-# From the repository root, matching the Vercel project context:
-cd ../..
 docker build -f Dockerfile.vercel .
 ```
 
@@ -68,8 +65,9 @@ The stable production client ID is
 `https://oauth.presently.photo/oauth/client-metadata.json`, with native callback
 `photo.presently.oauth:/oauth/callback`. Configure the production environment
 from `services/oauth-worker/.env.example`. Vercel detects the root
-`vercel.json` container preset, builds `Dockerfile.vercel`, and routes public
-requests to the container listening on the platform-provided `PORT`.
+`vercel.json` container preset, builds
+`services/oauth-worker/Dockerfile.vercel`, and routes public requests to the
+container listening on the platform-provided `PORT`.
 
 ## Reference material
 
