@@ -24,10 +24,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>tech.stygian.presently.oauth</string>
+			<string>photo.presently.oauth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>tech.stygian.presently</string>
+				<string>photo.presently.oauth</string>
 			</array>
 		</dict>
 	</array>

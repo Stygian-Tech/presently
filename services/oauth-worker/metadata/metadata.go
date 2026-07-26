@@ -11,7 +11,7 @@ import (
 
 const (
 	Scope                = "atproto repo:blue.flashes.story.post?action=create blob:image/jpeg"
-	defaultRedirectURI   = "tech.stygian.presently:/oauth/callback"
+	defaultRedirectURI   = "photo.presently.oauth:/oauth/callback"
 	metadataDocumentPath = "/oauth/client-metadata.json"
 )
 

@@ -9,15 +9,15 @@ import (
 )
 
 func TestBuildDeclaresOnlyMVPPermissions(t *testing.T) {
-	document, err := Build("https://presently.stygian.tech", Config{
-		ClientID:    "https://presently.stygian.tech/oauth/client-metadata.json",
-		RedirectURI: "tech.stygian.presently:/oauth/callback",
+	document, err := Build("https://oauth.presently.photo", Config{
+		ClientID:    "https://oauth.presently.photo/oauth/client-metadata.json",
+		RedirectURI: "photo.presently.oauth:/oauth/callback",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if document.ClientID != "https://presently.stygian.tech/oauth/client-metadata.json" {
+	if document.ClientID != "https://oauth.presently.photo/oauth/client-metadata.json" {
 		t.Fatalf("unexpected client ID: %s", document.ClientID)
 	}
 	if document.ApplicationType != "native" {
@@ -36,10 +36,10 @@ func TestBuildDeclaresOnlyMVPPermissions(t *testing.T) {
 
 func TestHandlerServesJSONWithoutRedirect(t *testing.T) {
 	handler := Handler(Config{
-		ClientID:    "https://presently.stygian.tech/oauth/client-metadata.json",
-		RedirectURI: "tech.stygian.presently:/oauth/callback",
+		ClientID:    "https://oauth.presently.photo/oauth/client-metadata.json",
+		RedirectURI: "photo.presently.oauth:/oauth/callback",
 	})
-	request := httptest.NewRequest(http.MethodGet, "https://presently.stygian.tech/oauth/client-metadata.json", nil)
+	request := httptest.NewRequest(http.MethodGet, "https://oauth.presently.photo/oauth/client-metadata.json", nil)
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -55,8 +55,22 @@ func TestHandlerServesJSONWithoutRedirect(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&document); err != nil {
 		t.Fatal(err)
 	}
-	if document.ClientID != "https://presently.stygian.tech/oauth/client-metadata.json" {
+	if document.ClientID != "https://oauth.presently.photo/oauth/client-metadata.json" {
 		t.Fatalf("unexpected client ID: %s", document.ClientID)
+	}
+}
+
+func TestBuildUsesProductionNativeRedirectByDefault(t *testing.T) {
+	document, err := Build("https://oauth.presently.photo", Config{
+		ClientID: "https://oauth.presently.photo/oauth/client-metadata.json",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(document.RedirectURIs) != 1 ||
+		document.RedirectURIs[0] != "photo.presently.oauth:/oauth/callback" {
+		t.Fatalf("unexpected redirect URIs: %v", document.RedirectURIs)
 	}
 }
 
@@ -68,8 +82,8 @@ func TestBuildRequiresStableProductionClientID(t *testing.T) {
 }
 
 func TestBuildRejectsMismatchedRedirectScheme(t *testing.T) {
-	_, err := Build("https://presently.stygian.tech", Config{
-		ClientID:    "https://presently.stygian.tech/oauth/client-metadata.json",
+	_, err := Build("https://oauth.presently.photo", Config{
+		ClientID:    "https://oauth.presently.photo/oauth/client-metadata.json",
 		RedirectURI: "com.example.presently:/oauth/callback",
 	})
 	if !errors.Is(err, ErrInvalidConfiguration) {

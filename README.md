@@ -61,9 +61,13 @@ go build ./...
 docker build -f Dockerfile.vercel .
 ```
 
-Copy `.env.example` to `.env.local` and set the stable production metadata URL
-before deployment. Vercel detects `Dockerfile.vercel`; the container listens on
-the platform-provided `PORT`.
+The stable production client ID is
+`https://oauth.presently.photo/oauth/client-metadata.json`, with native callback
+`photo.presently.oauth:/oauth/callback`. Configure the production environment
+from `services/oauth-worker/.env.example`. Vercel detects the root
+`vercel.json` container preset, builds
+`services/oauth-worker/Dockerfile.vercel`, and routes public requests to the
+container listening on the platform-provided `PORT`.
 
 ## Reference material
 
