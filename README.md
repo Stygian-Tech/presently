@@ -58,12 +58,17 @@ cd apps/android
 cd services/oauth-worker
 go test ./...
 go build ./...
+
+# From the repository root, matching the Vercel project context:
+cd ../..
 docker build -f Dockerfile.vercel .
 ```
 
-Copy `.env.example` to `.env.local` and set the stable production metadata URL
-before deployment. Vercel detects `Dockerfile.vercel`; the container listens on
-the platform-provided `PORT`.
+The stable production client ID is
+`https://oauth.presently.photo/oauth/client-metadata.json`, with native callback
+`photo.presently.oauth:/oauth/callback`. Configure the production environment
+from `services/oauth-worker/.env.example`. Vercel detects the root
+`Dockerfile.vercel`; the container listens on the platform-provided `PORT`.
 
 ## Reference material
 

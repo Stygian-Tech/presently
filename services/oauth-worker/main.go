@@ -34,6 +34,25 @@ func main() {
 func newHandler(config metadata.Config) http.Handler {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("GET /{$}", func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Cache-Control", "public, max-age=300, s-maxage=300")
+		response.Header().Set("Content-Type", "text/html; charset=utf-8")
+		response.WriteHeader(http.StatusOK)
+		_, _ = response.Write([]byte(`<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presently OAuth</title>
+<body>
+<main>
+<h1>Presently</h1>
+<p>This service publishes the OAuth client metadata used by the Presently mobile apps.</p>
+<p><a href="/oauth/client-metadata.json">View OAuth client metadata</a></p>
+</main>
+</body>
+</html>`))
+	})
+
 	mux.HandleFunc("GET /healthz", func(response http.ResponseWriter, _ *http.Request) {
 		response.Header().Set("Cache-Control", "no-store")
 		response.Header().Set("Content-Type", "application/json; charset=utf-8")

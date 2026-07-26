@@ -21,9 +21,9 @@ targets:
         CFBundleDisplayName: Presently
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: tech.stygian.presently.oauth
+            CFBundleURLName: photo.presently.oauth
             CFBundleURLSchemes:
-              - tech.stygian.presently
+              - photo.presently.oauth
         LSApplicationCategoryType: public.app-category.photo-video
         NSCameraUsageDescription: Presently uses the camera to create the story you choose to post.
         NSPhotoLibraryAddUsageDescription: Presently saves a copy only when you enable Save to Photos.

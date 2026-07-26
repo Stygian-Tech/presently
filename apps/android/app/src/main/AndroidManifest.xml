@@ -33,7 +33,7 @@
                 <data
                     android:host="oauth"
                     android:path="/callback"
-                    android:scheme="tech.stygian.presently" />
+                    android:scheme="photo.presently.oauth" />
             </intent-filter>
         </activity>
     </application>
