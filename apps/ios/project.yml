@@ -7,8 +7,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    DEVELOPMENT_TEAM: ""
-    CODE_SIGNING_ALLOWED: "NO"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: G39TU2R26A
 targets:
   Presently:
     type: application
