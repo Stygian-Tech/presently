@@ -16,6 +16,7 @@
 		9332A052C983AB1959E757B0 /* LocalStoryDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB40AE90080E041CD96530D /* LocalStoryDraft.swift */; };
 		9649B7A160BF7F3C354C85DC /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6872B4AA1FDE60AA6459AB4F /* CameraController.swift */; };
 		A961ED2B4BC75548D1D59381 /* PresentlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64319EA167BD70178267DA5C /* PresentlyApp.swift */; };
+		E0BF4B9B9F3209926B8B4BAF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F962FC7879277CC62A48833F /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -40,6 +41,7 @@
 		E15815BF2DCA11AFA272D709 /* PhotoLibrarySaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibrarySaver.swift; sourceTree = "<group>"; };
 		E908AE01B1048CAAC2648097 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
 		F537D1774090DDECC6E492C8 /* FlashesStoryRecordTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashesStoryRecordTests.swift; sourceTree = "<group>"; };
+		F962FC7879277CC62A48833F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FCF0E7842C334255D73722EF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -83,6 +85,7 @@
 		8843A36C5D39217A0B9914C2 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				F962FC7879277CC62A48833F /* Assets.xcassets */,
 				FCF0E7842C334255D73722EF /* Info.plist */,
 			);
 			path = Resources;
@@ -152,6 +155,7 @@
 			buildConfigurationList = 7BE0FFD126769085B1B29727 /* Build configuration list for PBXNativeTarget "Presently" */;
 			buildPhases = (
 				12E4ECED554E98805D13D32B /* Sources */,
+				02C0236CAD60E1B6C15B0339 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -202,6 +206,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		02C0236CAD60E1B6C15B0339 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E0BF4B9B9F3209926B8B4BAF /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		12E4ECED554E98805D13D32B /* Sources */ = {
