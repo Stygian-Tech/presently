@@ -4,6 +4,11 @@ import Observation
 @MainActor
 @Observable
 final class CameraController: NSObject {
+    enum Facing: Equatable, Sendable {
+        case back
+        case front
+    }
+
     enum State: Equatable {
         case idle
         case requestingPermission
@@ -21,6 +26,18 @@ final class CameraController: NSObject {
     var state: State = .idle
     var capturedPhotoData: Data?
     var isCapturing = false
+    var facing: Facing = .back
+    var zoomFactor = 1.0
+    var minimumZoomFactor = 1.0
+    var maximumZoomFactor = 1.0
+    var canSwitchCamera = false
+    var isSwitchingCamera = false
+
+    var quickZoomFactors: [Double] {
+        [0.5, 1, 2, 3].filter {
+            $0 >= minimumZoomFactor - 0.01 && $0 <= maximumZoomFactor + 0.01
+        }
+    }
 
     func start() async {
         guard state != .ready else { return }
@@ -42,7 +59,8 @@ final class CameraController: NSObject {
         }
 
         do {
-            try await cameraSession.start()
+            let capabilities = try await cameraSession.start(facing: facing)
+            apply(capabilities)
             state = .ready
         } catch {
             state = .unavailable(error.localizedDescription)
@@ -61,8 +79,36 @@ final class CameraController: NSObject {
         cameraSession.capture(delegate: self)
     }
 
+    func switchCamera() async {
+        guard state == .ready, !isSwitchingCamera else { return }
+        isSwitchingCamera = true
+        defer { isSwitchingCamera = false }
+
+        let requestedFacing: Facing = facing == .back ? .front : .back
+        do {
+            let capabilities = try await cameraSession.switchCamera(to: requestedFacing)
+            facing = requestedFacing
+            apply(capabilities)
+        } catch {
+            state = .unavailable(error.localizedDescription)
+        }
+    }
+
+    func setZoomFactor(_ requestedZoomFactor: Double) {
+        let zoomFactor = min(max(requestedZoomFactor, minimumZoomFactor), maximumZoomFactor)
+        self.zoomFactor = zoomFactor
+        cameraSession.setZoomFactor(zoomFactor)
+    }
+
     func retake() {
         capturedPhotoData = nil
+    }
+
+    private func apply(_ capabilities: CameraCapabilities) {
+        zoomFactor = capabilities.zoomFactor
+        minimumZoomFactor = capabilities.minimumZoomFactor
+        maximumZoomFactor = capabilities.maximumZoomFactor
+        canSwitchCamera = capabilities.canSwitchCamera
     }
 }
 
@@ -118,13 +164,17 @@ private final class CameraSession: @unchecked Sendable {
     private let photoOutput = AVCapturePhotoOutput()
     private let sessionQueue = CameraSessionQueue(label: "tech.stygian.presently.camera-session")
     private var camera: AVCaptureDevice?
+    private var cameraInput: AVCaptureDeviceInput?
+    private var zoomDisplayScale = 1.0
     private var isConfigured = false
 
-    func start() async throws {
+    func start(facing: CameraController.Facing) async throws -> CameraCapabilities {
         try await sessionQueue.perform { [self] in
-            try configureIfNeeded()
-            guard !session.isRunning else { return }
-            session.startRunning()
+            let capabilities = try configure(facing: facing)
+            if !session.isRunning {
+                session.startRunning()
+            }
+            return capabilities
         }
     }
 
@@ -142,18 +192,40 @@ private final class CameraSession: @unchecked Sendable {
             if camera?.hasFlash == true {
                 settings.flashMode = .auto
             }
+            settings.photoQualityPrioritization = .quality
             photoOutput.capturePhoto(with: settings, delegate: delegate.value)
         }
     }
 
-    private func configureIfNeeded() throws {
-        guard !isConfigured else { return }
-        guard let camera = AVCaptureDevice.default(
-            .builtInWideAngleCamera,
-            for: .video,
-            position: .back
-        ) else {
-            throw CameraError.noBackCamera
+    func switchCamera(to facing: CameraController.Facing) async throws -> CameraCapabilities {
+        try await sessionQueue.perform { [self] in
+            try configure(facing: facing)
+        }
+    }
+
+    func setZoomFactor(_ zoomFactor: Double) {
+        sessionQueue.perform { [self] in
+            guard let camera else { return }
+            let deviceZoomFactor = CGFloat(zoomFactor / zoomDisplayScale)
+            let clampedZoomFactor = min(
+                max(deviceZoomFactor, camera.minAvailableVideoZoomFactor),
+                camera.maxAvailableVideoZoomFactor
+            )
+            do {
+                try camera.lockForConfiguration()
+                camera.videoZoomFactor = clampedZoomFactor
+                camera.unlockForConfiguration()
+            } catch {
+                return
+            }
+        }
+    }
+
+    private func configure(
+        facing: CameraController.Facing
+    ) throws -> CameraCapabilities {
+        guard let camera = Self.camera(for: facing) else {
+            throw facing == .back ? CameraError.noBackCamera : CameraError.noFrontCamera
         }
 
         let input = try AVCaptureDeviceInput(device: camera)
@@ -161,14 +233,89 @@ private final class CameraSession: @unchecked Sendable {
         defer { session.commitConfiguration() }
         session.sessionPreset = .photo
 
-        guard session.canAddInput(input), session.canAddOutput(photoOutput) else {
+        if let cameraInput {
+            session.removeInput(cameraInput)
+        }
+
+        guard session.canAddInput(input) else {
+            if let cameraInput, session.canAddInput(cameraInput) {
+                session.addInput(cameraInput)
+            }
             throw CameraError.configurationFailed
         }
+
         session.addInput(input)
-        session.addOutput(photoOutput)
+
+        if !isConfigured {
+            guard session.canAddOutput(photoOutput) else {
+                session.removeInput(input)
+                throw CameraError.configurationFailed
+            }
+            session.addOutput(photoOutput)
+            photoOutput.maxPhotoQualityPrioritization = .quality
+            isConfigured = true
+        }
+
+        zoomDisplayScale = Self.zoomDisplayScale(for: camera)
+        let minimumZoomFactor = Double(camera.minAvailableVideoZoomFactor) * zoomDisplayScale
+        let maximumZoomFactor = Double(camera.maxAvailableVideoZoomFactor) * zoomDisplayScale
+        let preferredZoomFactor = min(max(1, minimumZoomFactor), maximumZoomFactor)
+
+        try camera.lockForConfiguration()
+        camera.videoZoomFactor = CGFloat(preferredZoomFactor / zoomDisplayScale)
+        camera.unlockForConfiguration()
+
         self.camera = camera
-        isConfigured = true
+        cameraInput = input
+
+        return CameraCapabilities(
+            zoomFactor: preferredZoomFactor,
+            minimumZoomFactor: minimumZoomFactor,
+            maximumZoomFactor: maximumZoomFactor,
+            canSwitchCamera: Self.camera(for: facing == .back ? .front : .back) != nil
+        )
     }
+
+    private static func camera(
+        for facing: CameraController.Facing
+    ) -> AVCaptureDevice? {
+        let position: AVCaptureDevice.Position = facing == .back ? .back : .front
+        let deviceTypes: [AVCaptureDevice.DeviceType] = facing == .back
+            ? [
+                .builtInTripleCamera,
+                .builtInDualWideCamera,
+                .builtInDualCamera,
+                .builtInWideAngleCamera,
+            ]
+            : [
+                .builtInTrueDepthCamera,
+                .builtInWideAngleCamera,
+            ]
+
+        return AVCaptureDevice.DiscoverySession(
+            deviceTypes: deviceTypes,
+            mediaType: .video,
+            position: position
+        ).devices.first
+    }
+
+    private static func zoomDisplayScale(for camera: AVCaptureDevice) -> Double {
+        guard camera.deviceType == .builtInTripleCamera ||
+                camera.deviceType == .builtInDualWideCamera,
+              let firstSwitchFactor = camera.virtualDeviceSwitchOverVideoZoomFactors.first
+        else {
+            return 1
+        }
+
+        return 1 / firstSwitchFactor.doubleValue
+    }
+}
+
+private struct CameraCapabilities: Sendable {
+    let zoomFactor: Double
+    let minimumZoomFactor: Double
+    let maximumZoomFactor: Double
+    let canSwitchCamera: Bool
 }
 
 private final class PhotoCaptureDelegate: @unchecked Sendable {
@@ -181,12 +328,15 @@ private final class PhotoCaptureDelegate: @unchecked Sendable {
 
 private enum CameraError: LocalizedError {
     case noBackCamera
+    case noFrontCamera
     case configurationFailed
 
     var errorDescription: String? {
         switch self {
         case .noBackCamera:
             "No back camera is available on this device."
+        case .noFrontCamera:
+            "No front camera is available on this device."
         case .configurationFailed:
             "Presently could not configure the camera."
         }

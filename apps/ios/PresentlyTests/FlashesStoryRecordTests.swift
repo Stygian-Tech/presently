@@ -65,3 +65,35 @@ struct CameraSessionQueueTests {
         #expect(!ranOnMainThread)
     }
 }
+
+struct SaveToPhotosPreferenceTests {
+    @Test
+    func alwaysSavesRegardlessOfPerPhotoChoice() {
+        #expect(SaveToPhotosPreference.always.shouldSave(whenAsked: false))
+        #expect(SaveToPhotosPreference.always.shouldSave(whenAsked: true))
+    }
+
+    @Test
+    func askUsesThePerPhotoChoice() {
+        #expect(!SaveToPhotosPreference.ask.shouldSave(whenAsked: false))
+        #expect(SaveToPhotosPreference.ask.shouldSave(whenAsked: true))
+    }
+
+    @Test
+    func neverSkipsSavingRegardlessOfPerPhotoChoice() {
+        #expect(!SaveToPhotosPreference.never.shouldSave(whenAsked: false))
+        #expect(!SaveToPhotosPreference.never.shouldSave(whenAsked: true))
+    }
+
+    @Test
+    func legacyBooleanMigratesToAlwaysOrAsk() {
+        let settings = AppSettings()
+        settings.saveToPhotosPreferenceRawValue = nil
+
+        settings.saveToPhotos = true
+        #expect(settings.saveToPhotosPreference == .always)
+
+        settings.saveToPhotos = false
+        #expect(settings.saveToPhotosPreference == .ask)
+    }
+}

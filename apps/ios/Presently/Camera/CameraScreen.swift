@@ -7,6 +7,9 @@ struct CameraScreen: View {
     @Query private var storedSettings: [AppSettings]
     @State private var camera = CameraController()
     @State private var feedbackMessage: String?
+    @State private var presentedSheet: CameraSheet?
+    @State private var saveThisPhoto = false
+    @State private var zoomAtGestureStart: Double?
 
     private var settings: AppSettings? {
         storedSettings.first
@@ -30,6 +33,14 @@ struct CameraScreen: View {
         .onDisappear {
             camera.stop()
         }
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .settings:
+                if let settings {
+                    CameraSettingsSheet(settings: settings)
+                }
+            }
+        }
         .alert(
             "Presently",
             isPresented: Binding(
@@ -47,17 +58,35 @@ struct CameraScreen: View {
         ZStack {
             CameraPreview(session: camera.session)
                 .ignoresSafeArea()
+                .gesture(
+                    MagnifyGesture()
+                        .onChanged { value in
+                            let startingZoom = zoomAtGestureStart ?? camera.zoomFactor
+                            zoomAtGestureStart = startingZoom
+                            camera.setZoomFactor(startingZoom * value.magnification)
+                        }
+                        .onEnded { _ in
+                            zoomAtGestureStart = nil
+                        }
+                )
 
             VStack {
                 HStack {
                     Text("Presently")
                         .font(.headline)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.black.opacity(0.45), in: Capsule())
                     Spacer()
-                    Label("OAuth next", systemImage: "person.crop.circle.badge.exclamationmark")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(.black.opacity(0.55), in: Capsule())
+                    Button {
+                        presentedSheet = .settings
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .background(.black.opacity(0.45), in: Circle())
+                    }
+                    .accessibilityLabel("Camera settings")
                 }
                 .foregroundStyle(.white)
                 .padding()
@@ -66,23 +95,71 @@ struct CameraScreen: View {
 
                 cameraStateMessage
 
+                cameraControls
+            }
+        }
+    }
+
+    private var cameraControls: some View {
+        VStack(spacing: 20) {
+            HStack(spacing: 8) {
+                ForEach(camera.quickZoomFactors, id: \.self) { zoomFactor in
+                    Button {
+                        camera.setZoomFactor(zoomFactor)
+                    } label: {
+                        Text(formatZoom(zoomFactor))
+                            .font(.caption.monospacedDigit().weight(.semibold))
+                            .foregroundStyle(
+                                abs(camera.zoomFactor - zoomFactor) < 0.05 ? .yellow : .white
+                            )
+                            .frame(width: 42, height: 32)
+                            .background(.black.opacity(0.5), in: Capsule())
+                    }
+                    .accessibilityLabel("Zoom \(formatZoom(zoomFactor))")
+                }
+            }
+
+            HStack {
+                Color.clear
+                    .frame(width: 54, height: 54)
+
+                Spacer()
+
                 Button {
+                    saveThisPhoto = false
                     camera.capture()
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(.white.opacity(0.25))
-                            .frame(width: 84, height: 84)
+                            .stroke(.white, lineWidth: 4)
+                            .frame(width: 78, height: 78)
                         Circle()
                             .fill(.white)
-                            .frame(width: 68, height: 68)
+                            .frame(width: 66, height: 66)
                     }
                 }
                 .disabled(camera.state != .ready || camera.isCapturing)
                 .accessibilityLabel("Take photo")
-                .padding(.bottom, 28)
+
+                Spacer()
+
+                Button {
+                    Task {
+                        await camera.switchCamera()
+                    }
+                } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: 54, height: 54)
+                        .background(.black.opacity(0.5), in: Circle())
+                }
+                .disabled(!camera.canSwitchCamera || camera.isSwitchingCamera)
+                .accessibilityLabel("Switch camera")
             }
         }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 24)
     }
 
     @ViewBuilder
@@ -117,6 +194,7 @@ struct CameraScreen: View {
             VStack {
                 HStack {
                     Button("Retake", systemImage: "arrow.counterclockwise") {
+                        saveThisPhoto = false
                         camera.retake()
                     }
                     .buttonStyle(.borderedProminent)
@@ -127,13 +205,7 @@ struct CameraScreen: View {
                 Spacer()
 
                 VStack(spacing: 14) {
-                    Toggle(
-                        "Save to Photos",
-                        isOn: Binding(
-                            get: { settings?.saveToPhotos ?? false },
-                            set: updateSavePreference
-                        )
-                    )
+                    saveToPhotosReviewOption
 
                     Button {
                         queueDraft(imageData: imageData)
@@ -160,13 +232,18 @@ struct CameraScreen: View {
         try? modelContext.save()
     }
 
-    private func updateSavePreference(_ enabled: Bool) {
-        let value = settings ?? AppSettings()
-        if settings == nil {
-            modelContext.insert(value)
+    @ViewBuilder
+    private var saveToPhotosReviewOption: some View {
+        switch settings?.saveToPhotosPreference ?? .ask {
+        case .always:
+            Label("A copy will be saved to Photos", systemImage: "photo.badge.checkmark")
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        case .ask:
+            Toggle("Save this photo", isOn: $saveThisPhoto)
+        case .never:
+            EmptyView()
         }
-        value.saveToPhotos = enabled
-        try? modelContext.save()
     }
 
     private func queueDraft(imageData: Data) {
@@ -183,7 +260,8 @@ struct CameraScreen: View {
             return
         }
 
-        if settings?.saveToPhotos == true {
+        let preference = settings?.saveToPhotosPreference ?? .ask
+        if preference.shouldSave(whenAsked: saveThisPhoto) {
             Task {
                 do {
                     try await PhotoLibrarySaver.save(jpegData: imageData)
@@ -195,7 +273,74 @@ struct CameraScreen: View {
         } else {
             feedbackMessage = "Story saved as a pending draft. OAuth publishing is the next slice."
         }
+        saveThisPhoto = false
         camera.retake()
+    }
+
+    private func formatZoom(_ zoomFactor: Double) -> String {
+        if zoomFactor.rounded() == zoomFactor {
+            return "\(Int(zoomFactor))×"
+        }
+        return String(format: "%.1f×", zoomFactor)
+    }
+}
+
+private enum CameraSheet: String, Identifiable {
+    case settings
+
+    var id: Self { self }
+}
+
+private struct CameraSettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    let settings: AppSettings
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker(
+                        "Save to Photos",
+                        selection: Binding(
+                            get: { settings.saveToPhotosPreference },
+                            set: updateSavePreference
+                        )
+                    ) {
+                        ForEach(SaveToPhotosPreference.allCases) { preference in
+                            VStack(alignment: .leading) {
+                                Text(preference.title)
+                                Text(preference.explanation)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .tag(preference)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } header: {
+                    Text("Save captured photos")
+                } footer: {
+                    Text("This controls whether posted photos are also added to your photo library.")
+                }
+            }
+            .navigationTitle("Camera Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func updateSavePreference(_ preference: SaveToPhotosPreference) {
+        settings.saveToPhotosPreference = preference
+        try? modelContext.save()
     }
 }
 
