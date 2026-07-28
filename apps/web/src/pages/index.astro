@@ -1,0 +1,211 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+
+const title = "Presently — Share the Moment, Then Let It Go";
+const description =
+  "A camera-first app for sharing photos as 24-hour stories to the Atmosphere, without a feed getting in the way.";
+---
+
+<SiteLayout title={title} description={description}>
+  <SiteHeader />
+
+  <main>
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="glow glow-coral"></div>
+      <div class="glow glow-blue"></div>
+      <div class="shell hero-grid">
+        <div class="hero-copy">
+          <h1 id="hero-heading">
+            Share What’s Happening.<br />
+            Then Let It Go.
+          </h1>
+          <p>
+            Presently opens straight to the camera, so you can share a photo to
+            the Atmosphere without getting pulled into a feed. Presently is
+            currently in beta.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-dark" href="/support/#availability">
+              Get Presently
+            </a>
+            <a class="text-link" href="#how-it-works">
+              See How It Works
+              <span aria-hidden="true">↓</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="phone-stage" aria-label="Presently Camera Preview">
+          <div class="phone">
+            <div class="phone-screen">
+              <img
+                src="/images/hero-friends.jpg"
+                width="1067"
+                height="1600"
+                alt="Friends taking a spontaneous photo together at sunset"
+                fetchpriority="high"
+              />
+              <span class="dynamic-island" aria-hidden="true"></span>
+
+              <div class="presently-camera-top" aria-hidden="true">
+                <span class="camera-title">Presently</span>
+                <span class="camera-top-spacer"></span>
+                <span class="camera-circle">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />
+                  </svg>
+                </span>
+                <span class="camera-circle">
+                  <svg viewBox="0 0 24 24">
+                    <path
+                      d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"
+                    />
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </span>
+              </div>
+
+              <div class="camera-bottom" aria-hidden="true">
+                <div class="zoom-row">
+                  <span>0.5×</span>
+                  <span class="zoom-selected">1×</span>
+                  <span>2×</span>
+                </div>
+                <div class="capture-row">
+                  <span class="control-spacer"></span>
+                  <span class="shutter"><span></span></span>
+                  <span class="camera-circle switch-camera">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M19.5 8.3A8 8 0 0 0 6.1 5.7L4 8" />
+                      <path d="M4 4v4h4" />
+                      <path d="M4.5 15.7a8 8 0 0 0 13.4 2.6L20 16" />
+                      <path d="M20 20v-4h-4" />
+                      <path d="M9 10.2h6l1 1.3v3.8H8v-3.8l1-1.3Z" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone-shadow" aria-hidden="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <section
+      class="experience"
+      id="how-it-works"
+      aria-labelledby="experience-heading"
+    >
+      <div class="shell">
+        <div class="section-heading">
+          <h2 id="experience-heading">Photos for 24 Hours.</h2>
+          <p>
+            Share whenever the moment happens. Each photo stays in the
+            Atmosphere for 24 hours, then makes room for what’s next.
+          </p>
+        </div>
+
+        <ol class="steps">
+          <li class="step step-camera">
+            <div class="step-visual">
+              <img
+                src="/images/hero-friends.jpg"
+                width="1067"
+                height="1600"
+                alt=""
+                loading="lazy"
+              />
+              <span class="mini-shutter" aria-hidden="true"></span>
+            </div>
+            <div class="step-label">
+              <span>1</span>
+              <h3>Open to the Camera</h3>
+            </div>
+          </li>
+
+          <li class="step step-choice">
+            <div class="step-visual">
+              <img
+                src="/images/hero-friends.jpg"
+                width="1067"
+                height="1600"
+                alt=""
+                loading="lazy"
+              />
+              <div class="review-actions" aria-hidden="true">
+                <span>×</span>
+                <span>✓</span>
+              </div>
+            </div>
+            <div class="step-label">
+              <span>2</span>
+              <h3>Choose the Moment</h3>
+            </div>
+          </li>
+
+          <li class="step step-share">
+            <div class="step-visual atmosphere-visual" aria-hidden="true">
+              <div class="story story-one"></div>
+              <div class="story story-two"></div>
+              <div class="story story-three"></div>
+              <img
+                src="/images/presently-icon.png"
+                width="192"
+                height="192"
+                alt=""
+                loading="lazy"
+              />
+            </div>
+            <div class="step-label">
+              <span>3</span>
+              <h3>Share to the Atmosphere</h3>
+            </div>
+          </li>
+        </ol>
+
+        <div class="privacy-note">
+          <img
+            src="/images/presently-icon.png"
+            width="96"
+            height="96"
+            alt=""
+            loading="lazy"
+          />
+          <div>
+            <h2>Your Account Stays Yours.</h2>
+            <p>
+              Sign in with your existing account. Presently only asks to share
+              the photos you choose.
+            </p>
+            <a href="/privacy/">Read the Privacy Details <span>→</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing" aria-labelledby="closing-heading">
+      <img
+        src="/images/evening-walk.jpg"
+        width="1920"
+        height="1080"
+        alt="Friends walking together above the city at dusk"
+        loading="lazy"
+      />
+      <div class="closing-fade" aria-hidden="true"></div>
+      <div class="shell closing-inner">
+        <div>
+          <h2 id="closing-heading">Be Where You Are.</h2>
+          <p>Open the camera. Share the moment. Get back to living it.</p>
+          <a class="button button-dark" href="/support/#availability">
+            Get Presently
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <SiteFooter />
+</SiteLayout>

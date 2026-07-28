@@ -1,0 +1,67 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+---
+
+<SiteLayout
+  title="Support — Presently"
+  description="Get help with Presently and follow availability for iOS and Android."
+>
+  <SiteHeader />
+  <main class="legal-page">
+    <article class="shell legal-content">
+      <h1>Support</h1>
+      <p class="legal-intro">
+        Presently is in active development for iOS and Android. Here’s where to
+        find current availability and report a problem.
+      </p>
+
+      <section class="support-panel" id="availability">
+        <h2>Get Presently</h2>
+        <p>
+          Presently is currently in beta. The iOS beta is available through
+          TestFlight. Android beta access is not available yet.
+        </p>
+        <p class="support-actions">
+          <a
+            class="button button-dark"
+            href="https://testflight.apple.com/join/rd8Y1dQs"
+            rel="noreferrer"
+            target="_blank">Join the iOS Beta</a
+          >
+        </p>
+      </section>
+
+      <h2>Report a Problem</h2>
+      <p>
+        If you have access to the project repository, open a GitHub issue with
+        your device, operating-system version, and what happened. Never include
+        passwords, access tokens, private keys, or a photo you do not want to
+        share publicly.
+      </p>
+      <p class="report-actions">
+        <a
+          class="button button-dark"
+          href="https://github.com/Stygian-Tech/presently/issues"
+          rel="noreferrer"
+          target="_blank">Open GitHub Issues</a
+        >
+        <a
+          class="button button-dark"
+          href="https://bsky.app/profile/samclemente.me"
+          rel="noreferrer"
+          target="_blank">Reach Out on Bluesky</a
+        >
+      </p>
+
+      <h2>Account Help</h2>
+      <p>
+        Presently signs you in through your existing AT Protocol account
+        provider. Account recovery, passwords, and provider availability are
+        managed by that provider.
+      </p>
+    </article>
+  </main>
+  <SiteFooter />
+</SiteLayout>

@@ -1,0 +1,18 @@
+---
+interface Props {
+  compact?: boolean;
+}
+
+const { compact = false } = Astro.props;
+---
+
+<a class:list={["brand", { compact }]} href="/" aria-label="Presently Home">
+  <img
+    src="/images/presently-icon.png"
+    width="48"
+    height="48"
+    alt=""
+    loading="eager"
+  />
+  <span>Presently</span>
+</a>
