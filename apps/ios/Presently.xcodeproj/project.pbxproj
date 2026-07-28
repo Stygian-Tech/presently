@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -109,7 +109,7 @@
 		B1AB4782F27C889A7252EA9C /* FlashesStoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashesStoryRecord.swift; sourceTree = "<group>"; };
 		BDB871280117FB16ADE67DF4 /* CameraScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraScreen.swift; sourceTree = "<group>"; };
 		BE2B605D28A456F04965115E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		C2C8752D8D776FE4AC5DB389 /* Presently.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Presently.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2C8752D8D776FE4AC5DB389 /* Presently.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Presently.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DA21055B48D762713167C90C /* FlashesActorProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashesActorProfile.swift; sourceTree = "<group>"; };
 		E15815BF2DCA11AFA272D709 /* PhotoLibrarySaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibrarySaver.swift; sourceTree = "<group>"; };
 		E908AE01B1048CAAC2648097 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
@@ -371,7 +371,6 @@
 			);
 			mainGroup = 41FDD0E6053CDBDADD4CF0BB;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -545,6 +544,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = tech.stygian.presently;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -619,6 +619,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = tech.stygian.presently;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

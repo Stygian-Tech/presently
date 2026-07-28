@@ -1,8 +1,9 @@
 package tech.stygian.presently.camera
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +15,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
@@ -35,34 +42,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import tech.stygian.presently.data.SaveToPhotosPreference
+import tech.stygian.presently.data.DefaultCamera
 import java.util.Locale
 
 @Composable
 internal fun CameraTopBar(
+    isAccountConnected: Boolean,
+    onAccount: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(104.dp)
-            .background(
-                Brush.verticalGradient(
-                    0f to Color.Black.copy(alpha = 0.58f),
-                    1f to Color.Transparent,
-                ),
-            ),
+            .height(104.dp),
     ) {
         Row(
             modifier = Modifier
@@ -77,6 +77,27 @@ internal fun CameraTopBar(
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.weight(1f))
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
+            ) {
+                IconButton(onClick = onAccount) {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = if (isAccountConnected) {
+                            "Connected account"
+                        } else {
+                            "Connect account"
+                        },
+                        tint = if (isAccountConnected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                    )
+                }
+            }
+            Spacer(Modifier.size(8.dp))
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.88f),
@@ -114,14 +135,7 @@ internal fun CameraControls(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(224.dp)
-            .background(
-                Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.45f to Color.Black.copy(alpha = 0.18f),
-                    1f to Color.Black.copy(alpha = 0.72f),
-                ),
-            ),
+            .height(224.dp),
     ) {
         Column(
             modifier = Modifier
@@ -179,19 +193,22 @@ internal fun CameraControls(
                 Spacer(Modifier.weight(1f))
                 Surface(
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+                    color = Color.Black.copy(alpha = 0.56f),
                 ) {
                     IconButton(
                         onClick = onSwitchCamera,
                         enabled = canSwitchCamera,
                         modifier = Modifier.size(52.dp),
                     ) {
-                        CameraSwitchGlyph(
-                            color = if (canSwitchCamera) {
-                                MaterialTheme.colorScheme.onSurface
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Switch Camera",
+                            tint = if (canSwitchCamera) {
+                                Color.White
                             } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                Color.White.copy(alpha = 0.38f)
                             },
+                            modifier = Modifier.size(30.dp),
                         )
                     }
                 }
@@ -227,60 +244,9 @@ private fun ShutterButton(
 }
 
 @Composable
-private fun CameraSwitchGlyph(
-    color: Color,
-    modifier: Modifier = Modifier,
-) {
-    Canvas(modifier = modifier.size(24.dp)) {
-        val strokeWidth = 2.25.dp.toPx()
-        val inset = 4.dp.toPx()
-        val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-        val stroke = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-
-        drawArc(
-            color = color,
-            startAngle = 205f,
-            sweepAngle = 205f,
-            useCenter = false,
-            topLeft = Offset(inset, inset),
-            size = arcSize,
-            style = stroke,
-        )
-        drawArc(
-            color = color,
-            startAngle = 25f,
-            sweepAngle = 205f,
-            useCenter = false,
-            topLeft = Offset(inset, inset),
-            size = arcSize,
-            style = stroke,
-        )
-
-        val arrowSize = 3.5.dp.toPx()
-        drawPath(
-            path = Path().apply {
-                moveTo(size.width - 2.5.dp.toPx(), 8.dp.toPx())
-                lineTo(size.width - 2.5.dp.toPx() - arrowSize, 5.dp.toPx())
-                lineTo(size.width - 2.5.dp.toPx() - arrowSize, 11.dp.toPx())
-                close()
-            },
-            color = color,
-        )
-        drawPath(
-            path = Path().apply {
-                moveTo(2.5.dp.toPx(), 16.dp.toPx())
-                lineTo(2.5.dp.toPx() + arrowSize, 13.dp.toPx())
-                lineTo(2.5.dp.toPx() + arrowSize, 19.dp.toPx())
-                close()
-            },
-            color = color,
-        )
-    }
-}
-
-@Composable
 internal fun ReviewControls(
     preference: SaveToPhotosPreference,
+    isPublishing: Boolean,
     saveThisPhoto: Boolean,
     onSaveThisPhotoChanged: (Boolean) -> Unit,
     onRetake: () -> Unit,
@@ -307,7 +273,7 @@ internal fun ReviewControls(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Save this photo")
+                        Text("Save This Photo")
                         Spacer(Modifier.weight(1f))
                         Switch(
                             checked = saveThisPhoto,
@@ -319,20 +285,59 @@ internal fun ReviewControls(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(
+                    space = 56.dp,
+                    alignment = Alignment.CenterHorizontally,
+                ),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Button(onClick = onRetake, modifier = Modifier.weight(1f)) {
-                    Text("Retake")
+                FilledIconButton(
+                    onClick = onRetake,
+                    enabled = !isPublishing,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.inverseSurface,
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    ),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .semantics { contentDescription = "Don't post photo" },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                    )
                 }
-                Button(onClick = onPost, modifier = Modifier.weight(1f)) {
-                    Text("Post story")
+                FilledIconButton(
+                    onClick = onPost,
+                    enabled = !isPublishing,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .semantics {
+                            contentDescription = if (isPublishing) {
+                                "Posting photo"
+                            } else {
+                                "Post photo"
+                            }
+                        },
+                ) {
+                    if (isPublishing) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                        )
+                    }
                 }
             }
-            Text(
-                "Publishing remains gated until native OAuth and DPoP are wired.",
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
     }
 }
@@ -341,19 +346,22 @@ internal fun ReviewControls(
 @Composable
 internal fun CameraSettingsSheet(
     selectedPreference: SaveToPhotosPreference,
+    selectedDefaultCamera: DefaultCamera,
     onPreferenceSelected: (SaveToPhotosPreference) -> Unit,
+    onDefaultCameraSelected: (DefaultCamera) -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Camera settings", style = MaterialTheme.typography.headlineSmall)
+            Text("Camera Settings", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "Save captured photos",
+                "Save Captured Photos",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -380,6 +388,34 @@ internal fun CameraSettingsSheet(
                     }
                 }
             }
+
+            Text(
+                "Default Camera",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            DefaultCamera.entries.forEach { camera ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onDefaultCameraSelected(camera) }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = selectedDefaultCamera == camera,
+                        onClick = { onDefaultCameraSelected(camera) },
+                    )
+                    Column(modifier = Modifier.padding(start = 10.dp)) {
+                        Text(camera.title)
+                        Text(
+                            camera.explanation,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -396,6 +432,18 @@ private val SaveToPhotosPreference.explanation: String
         SaveToPhotosPreference.ALWAYS -> "Save every photo you post to your library."
         SaveToPhotosPreference.ASK -> "Show a Save to Photos option before each post."
         SaveToPhotosPreference.NEVER -> "Post without adding a copy to your library."
+    }
+
+private val DefaultCamera.title: String
+    get() = when (this) {
+        DefaultCamera.REAR -> "Rear Camera"
+        DefaultCamera.FRONT -> "Front Camera"
+    }
+
+private val DefaultCamera.explanation: String
+    get() = when (this) {
+        DefaultCamera.REAR -> "Open Presently ready to photograph what’s in front of you."
+        DefaultCamera.FRONT -> "Open Presently ready to take a selfie."
     }
 
 private fun formatZoom(zoomRatio: Float): String =

@@ -12,6 +12,8 @@ data class LocalStoryDraft(
     val state: String = State.Pending.storageValue,
     val lastError: String? = null,
     val publishedUri: String? = null,
+    val publishedCid: String? = null,
+    val recordKey: String? = null,
 ) {
     enum class State(val storageValue: String) {
         Pending("pending"),

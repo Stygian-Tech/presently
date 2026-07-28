@@ -13,6 +13,9 @@ interface PresentlyDao {
     suspend fun insertDraft(draft: LocalStoryDraft)
 
     @Upsert
+    suspend fun upsertDraft(draft: LocalStoryDraft)
+
+    @Upsert
     suspend fun upsertSettings(settings: AppSettings)
 
     @Query("SELECT * FROM app_settings WHERE id = 'primary' LIMIT 1")
