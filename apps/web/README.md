@@ -1,7 +1,7 @@
 # Presently Marketing Site
 
-The static Astro site for Presently. It builds to `dist/` and is deployable to
-wisp.place.
+The static Astro site for Presently. It builds to `dist/` and is served by the
+repository's root Vercel container alongside the OAuth metadata service.
 
 ## Develop
 
@@ -20,17 +20,10 @@ npm run build
 Set `PUBLIC_SITE_URL` while building to generate canonical and social URLs for
 the deployed origin.
 
-## GitHub Deployment
+## Deployment
 
-The `Deploy Marketing Site to Wisp` workflow runs on changes to `apps/web` on
-`main` and can also be started manually. Configure the `production` GitHub
-environment with:
-
-- Variable `WISP_HANDLE`: the AT Protocol handle that owns the Wisp site.
-- Variable `WISP_SITE_NAME`: the Wisp site rkey. It defaults to `presently`.
-- Variable `PRESENTLY_SITE_URL`: the final public origin used for canonical
-  links, such as a mapped custom domain or Wisp URL.
-- Secret `WISP_APP_PASSWORD`: an app password created for the deploying AT
-  Protocol account.
-
-The workflow builds `apps/web/dist` and deploys it with `wispctl@1.1.0`.
+The `presently` Vercel project deploys pushes to `main`. Its root
+`Dockerfile.vercel` runs the site checks and build before copying `dist/` into
+the final container. `PUBLIC_SITE_URL` defaults to `https://presently.photo` and
+can be supplied as a container build argument when a different canonical origin
+is required.

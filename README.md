@@ -69,6 +69,7 @@ cd apps/android
 cd services/oauth-worker
 go test ./...
 go build ./...
+cd ../..
 docker build -f Dockerfile.vercel .
 ```
 
@@ -76,9 +77,9 @@ The stable production client ID is
 `https://oauth.presently.photo/oauth/client-metadata.json`, with native callback
 `photo.presently.oauth:/oauth/callback`. Configure the production environment
 from `services/oauth-worker/.env.example`. Vercel detects the root
-`vercel.json` container preset, builds
-`services/oauth-worker/Dockerfile.vercel`, and routes public requests to the
-container listening on the platform-provided `PORT`.
+`vercel.json` container preset and builds `Dockerfile.vercel`. The container
+serves the Astro marketing site alongside the OAuth metadata and health routes
+from the platform-provided `PORT`.
 
 ### Marketing Site
 
@@ -89,9 +90,9 @@ npm run check
 npm run build
 ```
 
-The static output in `apps/web/dist` is deployed to wisp.place by
-`.github/workflows/deploy-marketing-wisp.yml`. See `apps/web/README.md` for the
-required GitHub environment variables and app-password secret.
+The root Vercel container build validates and compiles the site, then serves the
+static output from the same `presently` project as the OAuth worker. Pushes to
+`main` deploy through the project's Vercel Git integration.
 
 ## Reference material
 

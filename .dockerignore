@@ -1,0 +1,14 @@
+.git
+.github
+.vercel
+.DS_Store
+**/.DS_Store
+**/.astro
+**/build
+**/DerivedData
+**/dist
+**/node_modules
+apps/android
+apps/ios
+design
+docs
