@@ -12,6 +12,8 @@ local.properties
 
 # JavaScript / Vercel
 node_modules/
+.astro/
+dist/
 .vercel/
 .env
 .env.*
