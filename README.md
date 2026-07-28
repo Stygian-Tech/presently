@@ -18,21 +18,26 @@ docs/
   STORY_CONTRACT.md Published Flashes record contract used by both clients
 ```
 
-## Current scaffold
+## Current Implementation
 
-- Both clients implement the camera/review interaction and persist a pending
-  story draft locally.
+- Both clients implement the camera/review interaction, friendly account
+  typeahead, native OAuth/DPoP session handling, and durable local story drafts.
 - Both clients model the exact current Flashes story record.
 - The Go OAuth service serves native public-client metadata with the minimum
   create-only Flashes actor, story, and JPEG blob permissions.
-- The iOS app implements OAuth session handling and DPoP request signing. Blob
-  upload and story creation remain the next vertical slice. Login idempotently
+- Both apps implement JPEG blob upload and `blue.flashes.story.post` creation.
+  Login idempotently
   provisions `blue.flashes.actor.profile/self` when the account does not
-  already have one.
+  already have one, and failed story drafts retain their record key for safe
+  retries.
 - On iOS 18 and later, Presently provides a Camera Control zoom/camera picker,
   a locked capture extension, and an Open Presently Camera control for Control
   Center and the Lock Screen. The user can select that control as the Camera
   Control or Action button launch action in system settings.
+- On Android 7 and later, Presently provides an “Open Presently Camera” Quick
+  Settings tile. Android does not expose Apple Camera Control or Lock Screen
+  control extensions; the launcher and Quick Settings tile open the same
+  camera-first experience instead.
 
 ## Develop
 

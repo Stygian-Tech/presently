@@ -2,6 +2,7 @@ package tech.stygian.presently.data
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AppSettingsTest {
@@ -28,5 +29,26 @@ class AppSettingsTest {
         val settings = AppSettings(saveToPhotosPreference = "not-a-real-preference")
 
         assertTrue(settings.preference == SaveToPhotosPreference.ASK)
+    }
+
+    @Test
+    fun rearCameraIsTheDefault() {
+        assertEquals(DefaultCamera.REAR, AppSettings().cameraPreference)
+    }
+
+    @Test
+    fun storedFrontCameraIsRestored() {
+        assertEquals(
+            DefaultCamera.FRONT,
+            AppSettings(defaultCamera = DefaultCamera.FRONT.name).cameraPreference,
+        )
+    }
+
+    @Test
+    fun invalidStoredCameraFallsBackToRear() {
+        assertEquals(
+            DefaultCamera.REAR,
+            AppSettings(defaultCamera = "SIDEWAYS").cameraPreference,
+        )
     }
 }

@@ -42,7 +42,6 @@ final class CameraController: NSObject {
                 guard let self else { return }
                 self.facing = facing
                 self.apply(capabilities)
-                await self.updateCaptureContext()
             }
         }
         cameraSession.onError = { [weak self] message in
@@ -74,14 +73,11 @@ final class CameraController: NSObject {
         }
     }
 
-    func start() async {
+    func start(preferredFacing: Facing = .back) async {
         guard state != .ready else { return }
 
         state = .requestingPermission
-        if #available(iOS 18.0, *),
-           let context = try? await PresentlyCaptureIntent.appContext {
-            facing = Facing(context.facing)
-        }
+        facing = preferredFacing
         let authorized: Bool
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -119,16 +115,20 @@ final class CameraController: NSObject {
     }
 
     func switchCamera() async {
+        let requestedFacing: Facing = facing == .back ? .front : .back
+        await switchCamera(to: requestedFacing)
+    }
+
+    func switchCamera(to requestedFacing: Facing) async {
         guard state == .ready, !isSwitchingCamera else { return }
+        guard requestedFacing != facing else { return }
         isSwitchingCamera = true
         defer { isSwitchingCamera = false }
 
-        let requestedFacing: Facing = facing == .back ? .front : .back
         do {
             let capabilities = try await cameraSession.switchCamera(to: requestedFacing)
             facing = requestedFacing
             apply(capabilities)
-            await updateCaptureContext()
         } catch {
             state = .unavailable(error.localizedDescription)
         }
@@ -162,22 +162,6 @@ final class CameraController: NSObject {
         }
     }
 
-    private func updateCaptureContext() async {
-        guard #available(iOS 18.0, *) else { return }
-        try? await PresentlyCaptureIntent.updateAppContext(
-            PresentlyCaptureContext(facing: facing.captureFacing)
-        )
-    }
-}
-
-private extension CameraController.Facing {
-    init(_ facing: PresentlyCaptureFacing) {
-        self = facing == .back ? .back : .front
-    }
-
-    var captureFacing: PresentlyCaptureFacing {
-        self == .back ? .back : .front
-    }
 }
 
 extension CameraController: AVCapturePhotoCaptureDelegate {

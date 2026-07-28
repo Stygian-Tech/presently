@@ -210,6 +210,86 @@ actor ATProtoOAuthClient {
         try store.deletePendingAuthorization()
     }
 
+    func publishStory(
+        jpegData: Data,
+        createdAt: Date,
+        recordKey: String
+    ) async throws -> PublishedStory {
+        guard jpegData.count <= FlashesStoryContract.maximumImageBytes else {
+            throw StoryContractError.imageTooLarge(jpegData.count)
+        }
+
+        var session = try await validSession()
+        let uploadURL = try repoEndpoint(
+            session.pdsURL,
+            method: "com.atproto.repo.uploadBlob"
+        )
+        let uploadResult = try await dpopResourceRequest(
+            url: uploadURL,
+            body: jpegData,
+            contentType: FlashesStoryContract.jpegMIMEType,
+            session: session
+        )
+        session = uploadResult.session
+        try store.saveSession(session)
+        guard uploadResult.response.statusCode == 200 else {
+            throw StoryContractError.uploadFailed(
+                uploadResult.response.statusCode
+            )
+        }
+        guard let uploaded = try? JSONDecoder().decode(
+            UploadBlobResponse.self,
+            from: uploadResult.response.data
+        ), uploaded.blob.mimeType == FlashesStoryContract.jpegMIMEType,
+           uploaded.blob.size == jpegData.count else {
+            throw StoryContractError.invalidBlobResponse
+        }
+
+        let record = try FlashesStoryRecordFactory.make(
+            blob: uploaded.blob,
+            createdAt: createdAt
+        )
+        let createURL = try repoEndpoint(
+            session.pdsURL,
+            method: "com.atproto.repo.createRecord"
+        )
+        let createBody = try JSONEncoder().encode(
+            CreateRecordRequest(
+                repo: session.accountDID,
+                collection: FlashesStoryContract.collection,
+                recordKey: recordKey,
+                record: record
+            )
+        )
+        let createResult = try await dpopResourceJSONRequest(
+            url: createURL,
+            body: createBody,
+            session: session
+        )
+        try store.saveSession(createResult.session)
+
+        if Self.isRecordAlreadyExists(createResult.response) {
+            return PublishedStory(
+                uri: "at://\(session.accountDID)/\(FlashesStoryContract.collection)/\(recordKey)",
+                cid: nil
+            )
+        }
+        guard createResult.response.statusCode == 200 else {
+            throw StoryContractError.createRecordFailed(
+                createResult.response.statusCode
+            )
+        }
+        guard let response = try? JSONDecoder().decode(
+            CreateRecordResponse.self,
+            from: createResult.response.data
+        ), response.uri ==
+            "at://\(session.accountDID)/\(FlashesStoryContract.collection)/\(recordKey)",
+           !response.cid.isEmpty else {
+            throw StoryContractError.invalidCreateRecordResponse
+        }
+        return PublishedStory(uri: response.uri, cid: response.cid)
+    }
+
     private func refresh(_ session: OAuthSession) async throws -> OAuthSession {
         let key = try DPoPKey(id: session.dpopKeyID, store: store)
         let result = try await dpopFormRequest(
@@ -340,6 +420,20 @@ actor ATProtoOAuthClient {
         body: Data,
         session: OAuthSession
     ) async throws -> (response: OAuthHTTPResponse, session: OAuthSession) {
+        try await dpopResourceRequest(
+            url: url,
+            body: body,
+            contentType: "application/json",
+            session: session
+        )
+    }
+
+    private func dpopResourceRequest(
+        url: URL,
+        body: Data,
+        contentType: String,
+        session: OAuthSession
+    ) async throws -> (response: OAuthHTTPResponse, session: OAuthSession) {
         let key = try DPoPKey(id: session.dpopKeyID, store: store)
         var activeNonce = session.resourceServerNonce
         var updatedSession = session
@@ -351,9 +445,10 @@ actor ATProtoOAuthClient {
                 nonce: activeNonce,
                 accessToken: session.accessToken
             )
-            let response = try await http.postJSON(
+            let response = try await http.post(
                 url,
                 body: body,
+                contentType: contentType,
                 headers: [
                     "Authorization": "DPoP \(session.accessToken)",
                     "DPoP": proof,

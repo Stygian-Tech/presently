@@ -1,6 +1,8 @@
 package tech.stygian.presently.story
 
 import java.time.Instant
+import java.security.SecureRandom
+import org.json.JSONObject
 
 object FlashesStoryContract {
     const val Collection = "blue.flashes.story.post"
@@ -15,6 +17,13 @@ data class ATProtoBlob(
     val mimeType: String,
     val size: Int,
 )
+
+fun ATProtoBlob.toJson(): JSONObject = JSONObject().apply {
+    put("\$type", type)
+    put("ref", JSONObject().put("\$link", cid))
+    put("mimeType", mimeType)
+    put("size", size)
+}
 
 data class FlashesStoryRecord(
     val type: String,
@@ -40,3 +49,36 @@ object FlashesStoryRecordFactory {
         )
     }
 }
+
+fun FlashesStoryRecord.toJson(): JSONObject = JSONObject().apply {
+    put("\$type", type)
+    put("image", image.toJson())
+    put("createdAt", createdAt)
+    put("expiresInMinutes", expiresInMinutes)
+}
+
+data class PublishedStory(
+    val uri: String,
+    val cid: String?,
+)
+
+object ATProtoTid {
+    private const val Alphabet = "234567abcdefghijklmnopqrstuvwxyz"
+    private val random = SecureRandom()
+
+    fun create(
+        epochMillis: Long = System.currentTimeMillis(),
+        clockIdentifier: Int = random.nextInt(1_024),
+    ): String {
+        var value = (epochMillis.coerceAtLeast(0) * 1_000L shl 10) or
+            (clockIdentifier and 0x03ff).toLong()
+        val characters = CharArray(13) { '2' }
+        for (index in 12 downTo 0) {
+            characters[index] = Alphabet[(value and 0x1f).toInt()]
+            value = value ushr 5
+        }
+        return String(characters)
+    }
+}
+
+class StoryPublishingException(message: String) : Exception(message)

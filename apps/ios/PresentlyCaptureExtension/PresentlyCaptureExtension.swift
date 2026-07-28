@@ -6,7 +6,7 @@ import SwiftUI
 struct PresentlyCaptureExtension: LockedCameraCaptureExtension {
     var body: some LockedCameraCaptureExtensionScene {
         LockedCameraCaptureUIScene { session in
-            PresentlyLockedCameraView(session: session)
+            PresentlyLockedCameraRootView(session: session)
         }
     }
 }

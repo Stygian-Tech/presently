@@ -1,10 +1,30 @@
+import AppIntents
 import LockedCameraCapture
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+struct PresentlyLockedCameraRootView: View {
+    let session: LockedCameraCaptureSession
+    @State private var cameraDevice = UIImagePickerController.CameraDevice.rear
+
+    var body: some View {
+        PresentlyLockedCameraView(
+            session: session,
+            cameraDevice: cameraDevice
+        )
+        .task {
+            guard let context = try? await PresentlyCaptureIntent.appContext else {
+                return
+            }
+            cameraDevice = context.facing == .back ? .rear : .front
+        }
+    }
+}
+
 struct PresentlyLockedCameraView: UIViewControllerRepresentable {
     let session: LockedCameraCaptureSession
+    let cameraDevice: UIImagePickerController.CameraDevice
 
     func makeCoordinator() -> Coordinator {
         Coordinator(session: session)
@@ -15,7 +35,9 @@ struct PresentlyLockedCameraView: UIViewControllerRepresentable {
         picker.sourceType = .camera
         picker.mediaTypes = [UTType.image.identifier]
         picker.cameraCaptureMode = .photo
-        picker.cameraDevice = .rear
+        if UIImagePickerController.isCameraDeviceAvailable(cameraDevice) {
+            picker.cameraDevice = cameraDevice
+        }
         picker.delegate = context.coordinator
         return picker
     }
@@ -23,7 +45,13 @@ struct PresentlyLockedCameraView: UIViewControllerRepresentable {
     func updateUIViewController(
         _ uiViewController: UIImagePickerController,
         context: Context
-    ) {}
+    ) {
+        guard UIImagePickerController.isCameraDeviceAvailable(cameraDevice),
+              uiViewController.cameraDevice != cameraDevice else {
+            return
+        }
+        uiViewController.cameraDevice = cameraDevice
+    }
 
     final class Coordinator: NSObject,
         UINavigationControllerDelegate,

@@ -52,18 +52,22 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import tech.stygian.presently.data.AppSettings
+import tech.stygian.presently.data.DefaultCamera
 import tech.stygian.presently.data.LocalStoryDraft
 import tech.stygian.presently.data.PresentlyDatabase
 import tech.stygian.presently.story.FlashesStoryContract
+import tech.stygian.presently.story.ATProtoTid
+import tech.stygian.presently.oauth.AccountSheet
+import tech.stygian.presently.oauth.OAuthSessionManager
 import java.io.File
+import java.time.Instant
+import java.util.concurrent.Executors
 
 @Composable
-fun CameraRoute() {
+fun CameraRoute(auth: OAuthSessionManager) {
     val context = LocalContext.current
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -82,7 +86,7 @@ fun CameraRoute() {
     }
 
     if (hasCameraPermission) {
-        CameraScreen()
+        CameraScreen(auth)
     } else {
         Box(
             modifier = Modifier
@@ -98,7 +102,7 @@ fun CameraRoute() {
             ) {
                 Text("Camera access is required to create a story.")
                 Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                    Text("Allow camera")
+                    Text("Allow Camera")
                 }
             }
         }
@@ -107,7 +111,7 @@ fun CameraRoute() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CameraScreen() {
+private fun CameraScreen(auth: OAuthSessionManager) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val database = remember { PresentlyDatabase.get(context) }
@@ -116,6 +120,7 @@ private fun CameraScreen() {
         dao.observeSettings().map { it ?: AppSettings() }
     }
     val settings by settingsFlow.collectAsStateWithLifecycle(initialValue = AppSettings())
+    val authState by auth.state.collectAsStateWithLifecycle()
     val imageCapture = remember {
         ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
@@ -131,17 +136,24 @@ private fun CameraScreen() {
     var capturedJpeg by remember { mutableStateOf<ByteArray?>(null) }
     var saveThisPhoto by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showAccount by remember { mutableStateOf(false) }
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var zoomRatio by remember { mutableFloatStateOf(1f) }
     var minimumZoomRatio by remember { mutableFloatStateOf(1f) }
     var maximumZoomRatio by remember { mutableFloatStateOf(1f) }
     var canSwitchCamera by remember { mutableStateOf(false) }
+    var isPublishing by remember { mutableStateOf(false) }
+    var activeDraft by remember { mutableStateOf<LocalStoryDraft?>(null) }
 
     fun setZoomRatio(requestedZoomRatio: Float) {
         val clampedZoomRatio = requestedZoomRatio.coerceIn(minimumZoomRatio, maximumZoomRatio)
         zoomRatio = clampedZoomRatio
         camera?.cameraControl?.setZoomRatio(clampedZoomRatio)
+    }
+
+    LaunchedEffect(settings.cameraPreference) {
+        lensFacing = settings.cameraPreference.lensFacing
     }
 
     DisposableEffect(lifecycleOwner, lensFacing) {
@@ -158,6 +170,12 @@ private fun CameraScreen() {
                 val selector = CameraSelector.Builder()
                     .requireLensFacing(lensFacing)
                     .build()
+                if (!cameraProvider.hasCamera(selector)) {
+                    if (lensFacing != CameraSelector.LENS_FACING_BACK) {
+                        lensFacing = CameraSelector.LENS_FACING_BACK
+                    }
+                    return@runCatching
+                }
 
                 cameraProvider.unbindAll()
                 camera = cameraProvider.bindToLifecycle(
@@ -205,6 +223,7 @@ private fun CameraScreen() {
     if (showSettings) {
         CameraSettingsSheet(
             selectedPreference = settings.preference,
+            selectedDefaultCamera = settings.cameraPreference,
             onPreferenceSelected = { preference ->
                 scope.launch {
                     dao.upsertSettings(
@@ -212,7 +231,20 @@ private fun CameraScreen() {
                     )
                 }
             },
+            onDefaultCameraSelected = { defaultCamera ->
+                scope.launch {
+                    dao.upsertSettings(
+                        settings.copy(defaultCamera = defaultCamera.name),
+                    )
+                }
+            },
             onDismiss = { showSettings = false },
+        )
+    }
+    if (showAccount) {
+        AccountSheet(
+            auth = auth,
+            onDismiss = { showAccount = false },
         )
     }
 
@@ -249,6 +281,8 @@ private fun CameraScreen() {
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
             CameraTopBar(
+                isAccountConnected = authState.session?.canPublishStory == true,
+                onAccount = { showAccount = true },
                 onSettings = { showSettings = true },
                 modifier = Modifier.align(Alignment.TopCenter),
             )
@@ -283,10 +317,12 @@ private fun CameraScreen() {
             } else {
                 ReviewControls(
                     preference = settings.preference,
+                    isPublishing = isPublishing,
                     saveThisPhoto = saveThisPhoto,
                     onSaveThisPhotoChanged = { saveThisPhoto = it },
                     onRetake = {
                         saveThisPhoto = false
+                        activeDraft = null
                         capturedJpeg = null
                     },
                     onPost = {
@@ -295,23 +331,75 @@ private fun CameraScreen() {
                                 snackbar.showSnackbar("This image exceeds Flashes' 10 MiB limit.")
                                 return@launch
                             }
-
-                            val shouldSave = settings.preference.shouldSave(saveThisPhoto)
-                            withContext(Dispatchers.IO) {
-                                dao.insertDraft(LocalStoryDraft(imageData = jpeg))
-                                if (shouldSave) {
-                                    PhotoLibrarySaver.save(context, jpeg)
-                                }
+                            if (authState.session?.canPublishStory != true) {
+                                showAccount = true
+                                return@launch
                             }
-                            saveThisPhoto = false
-                            capturedJpeg = null
-                            snackbar.showSnackbar(
-                                if (shouldSave) {
-                                    "Pending story saved and copied to Photos."
+
+                            val draft = activeDraft?.copy(
+                                state = LocalStoryDraft.State.Publishing.storageValue,
+                                lastError = null,
+                            ) ?: LocalStoryDraft(
+                                imageData = jpeg,
+                                state = LocalStoryDraft.State.Publishing.storageValue,
+                                recordKey = ATProtoTid.create(),
+                            ).also { activeDraft = it }
+                            dao.upsertDraft(draft)
+                            activeDraft = draft
+                            val recordKey = checkNotNull(draft.recordKey)
+                            isPublishing = true
+                            try {
+                                val published = auth.publishStory(
+                                    jpegData = jpeg,
+                                    createdAt = Instant.ofEpochMilli(
+                                        draft.createdAtEpochMillis,
+                                    ),
+                                    recordKey = recordKey,
+                                )
+                                dao.upsertDraft(
+                                    draft.copy(
+                                        state = LocalStoryDraft.State.Published.storageValue,
+                                        publishedUri = published.uri,
+                                        publishedCid = published.cid,
+                                        lastError = null,
+                                    ),
+                                )
+
+                                val shouldSave =
+                                    settings.preference.shouldSave(saveThisPhoto)
+                                val message = if (shouldSave) {
+                                    runCatching {
+                                        PhotoLibrarySaver.save(context, jpeg)
+                                    }.fold(
+                                        onSuccess = {
+                                            "Your Story Is Live and Saved to Photos."
+                                        },
+                                        onFailure = {
+                                            "Your Story Is Live, but It Couldn’t Be Saved to Photos."
+                                        },
+                                    )
                                 } else {
-                                    "Pending story saved. OAuth publishing is the next slice."
-                                },
-                            )
+                                    "Your Story Is Live."
+                                }
+                                saveThisPhoto = false
+                                activeDraft = null
+                                capturedJpeg = null
+                                snackbar.showSnackbar(message)
+                            } catch (error: Throwable) {
+                                val detail = error.localizedMessage
+                                    ?: "The story could not be posted."
+                                val failed = draft.copy(
+                                    state = LocalStoryDraft.State.Failed.storageValue,
+                                    lastError = detail,
+                                )
+                                dao.upsertDraft(failed)
+                                activeDraft = failed
+                                snackbar.showSnackbar(
+                                    "Your Story Couldn’t Be Posted. Tap the Checkmark to Try Again.",
+                                )
+                            } finally {
+                                isPublishing = false
+                            }
                         }
                     },
                     modifier = Modifier.align(Alignment.BottomCenter),
@@ -336,22 +424,45 @@ private fun capturePhoto(
 ) {
     val outputFile = File.createTempFile("presently-", ".jpg", context.cacheDir)
     val options = ImageCapture.OutputFileOptions.Builder(outputFile).build()
+    val captureExecutor = Executors.newSingleThreadExecutor()
+    val mainExecutor = ContextCompat.getMainExecutor(context)
 
     imageCapture.takePicture(
         options,
-        ContextCompat.getMainExecutor(context),
+        captureExecutor,
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                runCatching { outputFile.readBytes() }
-                    .onSuccess(onCaptured)
-                    .onFailure { onError(it.localizedMessage ?: "Could not read captured photo.") }
+                runCatching {
+                    JpegOrientationNormalizer.normalize(outputFile.readBytes())
+                }
+                    .onSuccess { data ->
+                        mainExecutor.execute { onCaptured(data) }
+                    }
+                    .onFailure { error ->
+                        mainExecutor.execute {
+                            onError(
+                                error.localizedMessage
+                                    ?: "Could not read captured photo.",
+                            )
+                        }
+                    }
                 outputFile.delete()
+                captureExecutor.shutdown()
             }
 
             override fun onError(exception: ImageCaptureException) {
                 outputFile.delete()
-                onError(exception.localizedMessage ?: "Could not capture photo.")
+                captureExecutor.shutdown()
+                mainExecutor.execute {
+                    onError(exception.localizedMessage ?: "Could not capture photo.")
+                }
             }
         },
     )
 }
+
+private val DefaultCamera.lensFacing: Int
+    get() = when (this) {
+        DefaultCamera.REAR -> CameraSelector.LENS_FACING_BACK
+        DefaultCamera.FRONT -> CameraSelector.LENS_FACING_FRONT
+    }

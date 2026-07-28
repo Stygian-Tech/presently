@@ -100,6 +100,22 @@ final class OAuthSessionManager {
         }
     }
 
+    func publishStory(
+        jpegData: Data,
+        createdAt: Date,
+        recordKey: String
+    ) async throws -> PublishedStory {
+        let story = try await client.publishStory(
+            jpegData: jpegData,
+            createdAt: createdAt,
+            recordKey: recordKey
+        )
+        if let session = try await client.currentSession() {
+            state = .signedIn(session)
+        }
+        return story
+    }
+
     private func restore() async {
         do {
             if let session = try await client.currentSession() {

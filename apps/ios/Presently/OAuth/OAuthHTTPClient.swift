@@ -65,10 +65,24 @@ struct OAuthHTTPClient: Sendable {
         body: Data,
         headers: [String: String]
     ) async throws -> OAuthHTTPResponse {
+        try await post(
+            url,
+            body: body,
+            contentType: "application/json",
+            headers: headers
+        )
+    }
+
+    func post(
+        _ url: URL,
+        body: Data,
+        contentType: String,
+        headers: [String: String]
+    ) async throws -> OAuthHTTPResponse {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.httpBody = body
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         return try await send(request)

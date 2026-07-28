@@ -12,6 +12,8 @@ struct CameraScreen: View {
     @State private var presentedSheet: CameraSheet?
     @State private var saveThisPhoto = false
     @State private var zoomAtGestureStart: Double?
+    @State private var isPublishing = false
+    @State private var activeDraft: LocalStoryDraft?
 
     private var settings: AppSettings? {
         storedSettings.first
@@ -30,7 +32,23 @@ struct CameraScreen: View {
         }
         .task {
             ensureSettingsExist()
-            await camera.start()
+            let defaultCamera = settings?.defaultCamera ?? .back
+            if #available(iOS 18.0, *) {
+                try? await PresentlyCaptureIntent.updateAppContext(
+                    PresentlyCaptureContext(
+                        facing: defaultCamera.captureFacing
+                    )
+                )
+            }
+            await camera.start(
+                preferredFacing: defaultCamera.cameraFacing
+            )
+        }
+        .onChange(of: settings?.defaultCamera) { _, preference in
+            guard let preference else { return }
+            Task {
+                await camera.switchCamera(to: preference.cameraFacing)
+            }
         }
         .task {
             guard #available(iOS 18.0, *) else { return }
@@ -246,36 +264,50 @@ struct CameraScreen: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             VStack {
-                HStack {
-                    Button("Retake", systemImage: "arrow.counterclockwise") {
-                        saveThisPhoto = false
-                        camera.retake()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    Spacer()
-                }
-                .padding()
-
                 Spacer()
 
-                VStack(spacing: 14) {
+                VStack(spacing: 18) {
                     saveToPhotosReviewOption
 
-                    Button {
-                        queueDraft(imageData: imageData)
-                    } label: {
-                        Label("Post Story", systemImage: "paperplane.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
+                    HStack(spacing: 56) {
+                        Button(role: .cancel) {
+                            saveThisPhoto = false
+                            activeDraft = nil
+                            camera.retake()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.title2.bold())
+                                .foregroundStyle(.white)
+                                .frame(width: 64, height: 64)
+                                .background(.black.opacity(0.72), in: Circle())
+                        }
+                        .disabled(isPublishing)
+                        .accessibilityLabel("Don’t Post Photo")
+                        .accessibilityHint("Returns to the camera")
 
-                    Text(
-                        auth.session == nil
-                            ? "Log Into the Atmosphere before posting."
-                            : "This account has the upload and create-story permissions required to publish."
-                    )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Button {
+                            Task {
+                                await publishStory(imageData: imageData)
+                            }
+                        } label: {
+                            if isPublishing {
+                                ProgressView()
+                                    .tint(.white)
+                                    .frame(width: 64, height: 64)
+                                    .background(.green, in: Circle())
+                            } else {
+                                Image(systemName: "checkmark")
+                                    .font(.title2.bold())
+                                    .foregroundStyle(.white)
+                                    .frame(width: 64, height: 64)
+                                    .background(.green, in: Circle())
+                            }
+                        }
+                        .disabled(isPublishing)
+                        .accessibilityLabel(
+                            isPublishing ? "Posting Photo" : "Post Photo"
+                        )
+                    }
                 }
                 .padding()
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
@@ -354,7 +386,8 @@ struct CameraScreen: View {
         }
     }
 
-    private func queueDraft(imageData: Data) {
+    @MainActor
+    private func publishStory(imageData: Data) async {
         guard imageData.count <= FlashesStoryContract.maximumImageBytes else {
             feedbackMessage = "This image exceeds Flashes' 10 MiB story limit."
             return
@@ -364,7 +397,20 @@ struct CameraScreen: View {
             return
         }
 
-        modelContext.insert(LocalStoryDraft(imageData: imageData))
+        let draft: LocalStoryDraft
+        if let activeDraft {
+            draft = activeDraft
+            draft.state = .publishing
+            draft.lastError = nil
+        } else {
+            draft = LocalStoryDraft(
+                imageData: imageData,
+                state: .publishing,
+                recordKey: ATProtoTID.make()
+            )
+            activeDraft = draft
+            modelContext.insert(draft)
+        }
         do {
             try modelContext.save()
         } catch {
@@ -372,21 +418,49 @@ struct CameraScreen: View {
             return
         }
 
-        let preference = settings?.saveToPhotosPreference ?? .ask
-        if preference.shouldSave(whenAsked: saveThisPhoto) {
-            Task {
+        guard let recordKey = draft.recordKey else {
+            draft.state = .failed
+            draft.lastError = "The story is missing its publication key."
+            try? modelContext.save()
+            feedbackMessage = draft.lastError
+            return
+        }
+
+        isPublishing = true
+        defer { isPublishing = false }
+        do {
+            let published = try await auth.publishStory(
+                jpegData: imageData,
+                createdAt: draft.createdAt,
+                recordKey: recordKey
+            )
+            draft.state = .published
+            draft.publishedURI = published.uri
+            draft.publishedCID = published.cid
+            draft.lastError = nil
+            try modelContext.save()
+
+            let preference = settings?.saveToPhotosPreference ?? .ask
+            if preference.shouldSave(whenAsked: saveThisPhoto) {
                 do {
                     try await PhotoLibrarySaver.save(jpegData: imageData)
-                    feedbackMessage = "Story saved as a pending draft and copied to Photos. Your account is connected for publishing."
+                    feedbackMessage = "Your story is live and saved to Photos."
                 } catch {
-                    feedbackMessage = "Draft saved, but Photos failed: \(error.localizedDescription)"
+                    feedbackMessage = "Your story is live, but it could not be saved to Photos."
                 }
+            } else {
+                feedbackMessage = "Your story is live."
             }
-        } else {
-            feedbackMessage = "Story saved as a pending draft. Your account is connected for publishing."
+            activeDraft = nil
+            saveThisPhoto = false
+            camera.retake()
+        } catch {
+            draft.state = .failed
+            draft.lastError = error.localizedDescription
+            try? modelContext.save()
+            feedbackMessage =
+                "Your story couldn’t be posted. \(error.localizedDescription) Tap the checkmark to try again."
         }
-        saveThisPhoto = false
-        camera.retake()
     }
 
     private func formatZoom(_ zoomFactor: Double) -> String {
@@ -437,6 +511,32 @@ private struct CameraSettingsSheet: View {
                 } footer: {
                     Text("This controls whether posted photos are also added to your photo library.")
                 }
+
+                Section {
+                    Picker(
+                        "Default Camera",
+                        selection: Binding(
+                            get: { settings.defaultCamera },
+                            set: updateDefaultCamera
+                        )
+                    ) {
+                        ForEach(DefaultCameraPreference.allCases) { preference in
+                            VStack(alignment: .leading) {
+                                Text(preference.title)
+                                Text(preference.explanation)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .tag(preference)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } header: {
+                    Text("Default Camera")
+                } footer: {
+                    Text("The camera switch button still changes cameras for the current session.")
+                }
             }
             .navigationTitle("Camera Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -448,12 +548,43 @@ private struct CameraSettingsSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 
     private func updateSavePreference(_ preference: SaveToPhotosPreference) {
         settings.saveToPhotosPreference = preference
         try? modelContext.save()
+    }
+
+    private func updateDefaultCamera(_ preference: DefaultCameraPreference) {
+        settings.defaultCamera = preference
+        try? modelContext.save()
+        guard #available(iOS 18.0, *) else { return }
+        Task {
+            try? await PresentlyCaptureIntent.updateAppContext(
+                PresentlyCaptureContext(facing: preference.captureFacing)
+            )
+        }
+    }
+}
+
+private extension DefaultCameraPreference {
+    var cameraFacing: CameraController.Facing {
+        switch self {
+        case .back:
+            .back
+        case .front:
+            .front
+        }
+    }
+
+    var captureFacing: PresentlyCaptureFacing {
+        switch self {
+        case .back:
+            .back
+        case .front:
+            .front
+        }
     }
 }
 

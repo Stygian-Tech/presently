@@ -16,6 +16,8 @@ final class LocalStoryDraft {
     var stateRawValue: String
     var lastError: String?
     var publishedURI: String?
+    var publishedCID: String?
+    var recordKey: String?
 
     var state: State {
         get { State(rawValue: stateRawValue) ?? .pending }
@@ -26,11 +28,13 @@ final class LocalStoryDraft {
         id: UUID = UUID(),
         imageData: Data,
         createdAt: Date = Date(),
-        state: State = .pending
+        state: State = .pending,
+        recordKey: String? = nil
     ) {
         self.id = id
         self.imageData = imageData
         self.createdAt = createdAt
         stateRawValue = state.rawValue
+        self.recordKey = recordKey
     }
 }

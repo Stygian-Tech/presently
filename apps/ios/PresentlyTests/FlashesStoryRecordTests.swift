@@ -52,6 +52,80 @@ struct FlashesStoryRecordTests {
             try FlashesStoryRecordFactory.make(blob: blob, createdAt: Date())
         }
     }
+
+    @Test
+    func createsAStableStoryRequestForRetries() throws {
+        let blob = ATProtoBlob(
+            cid: "bafkreiexample",
+            mimeType: "image/jpeg",
+            size: 512_000
+        )
+        let record = try FlashesStoryRecordFactory.make(
+            blob: blob,
+            createdAt: Date(timeIntervalSince1970: 1_753_488_000)
+        )
+        let request = CreateRecordRequest(
+            repo: "did:plc:example",
+            collection: FlashesStoryContract.collection,
+            recordKey: "3jzfcijpj2z2a",
+            record: record
+        )
+        let data = try JSONEncoder().encode(request)
+        let json = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+
+        #expect(json["repo"] as? String == "did:plc:example")
+        #expect(json["collection"] as? String == "blue.flashes.story.post")
+        #expect(json["rkey"] as? String == "3jzfcijpj2z2a")
+        #expect((json["record"] as? [String: Any])?["$type"] as? String
+            == "blue.flashes.story.post")
+    }
+
+    @Test
+    func generatesValidTimestampRecordKeys() {
+        let zero = ATProtoTID.make(
+            date: Date(timeIntervalSince1970: 0),
+            clockIdentifier: 0
+        )
+        let current = ATProtoTID.make(
+            date: Date(timeIntervalSince1970: 1_753_488_000),
+            clockIdentifier: 42
+        )
+
+        #expect(zero == "2222222222222")
+        #expect(current.count == 13)
+        #expect(
+            current.wholeMatch(
+                of: /^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$/
+            ) != nil
+        )
+    }
+
+    @Test
+    func decodesTheUploadedBlobExactly() throws {
+        let data = Data(
+            """
+            {
+              "blob": {
+                "$type": "blob",
+                "ref": {"$link": "bafkreiexample"},
+                "mimeType": "image/jpeg",
+                "size": 512000
+              }
+            }
+            """.utf8
+        )
+
+        let response = try JSONDecoder().decode(
+            UploadBlobResponse.self,
+            from: data
+        )
+
+        #expect(response.blob.reference.link == "bafkreiexample")
+        #expect(response.blob.mimeType == "image/jpeg")
+        #expect(response.blob.size == 512_000)
+    }
 }
 
 struct CameraSessionQueueTests {
@@ -105,6 +179,30 @@ struct SaveToPhotosPreferenceTests {
 
         settings.saveToPhotos = false
         #expect(settings.saveToPhotosPreference == .ask)
+    }
+}
+
+struct DefaultCameraPreferenceTests {
+    @Test
+    func exposesRearAndFrontCamerasInStableOrder() {
+        #expect(DefaultCameraPreference.allCases == [.back, .front])
+        #expect(DefaultCameraPreference.back.title == "Rear Camera")
+        #expect(DefaultCameraPreference.front.title == "Front Camera")
+    }
+
+    @Test
+    func defaultsAndLegacySettingsUseRearCamera() {
+        let settings = AppSettings()
+        #expect(settings.defaultCamera == .back)
+
+        settings.defaultCameraRawValue = nil
+        #expect(settings.defaultCamera == .back)
+    }
+
+    @Test
+    func persistsFrontCameraPreference() {
+        let settings = AppSettings(defaultCamera: .front)
+        #expect(settings.defaultCamera == .front)
     }
 }
 
