@@ -1,0 +1,69 @@
+---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+---
+
+<SiteLayout
+  title="Privacy — Presently"
+  description="How Presently handles photos, account information, and public story records."
+>
+  <SiteHeader />
+  <main class="legal-page">
+    <article class="shell legal-content">
+      <p class="legal-date">Last Updated July 27, 2026</p>
+      <h1>Privacy</h1>
+      <p class="legal-intro">
+        Presently is built to help you share a photo without building another
+        attention-driven feed. The app keeps your account credentials and photo
+        workflow on your device.
+      </p>
+
+      <h2>Photos You Choose to Share</h2>
+      <p>
+        A photo remains on your device while it is being prepared. When you
+        post, Presently uploads that photo directly to your AT Protocol Personal
+        Data Server and creates a public Flashes-compatible story record in your
+        repository.
+      </p>
+
+      <h2>Public Stories and Expiration</h2>
+      <p>
+        Story records are public repository data. Flashes-compatible apps stop
+        displaying a story after its 24-hour window, but public network data may
+        have been indexed, cached, or replicated elsewhere. Expiration is not a
+        promise that every copy is physically deleted.
+      </p>
+
+      <h2>Your Account</h2>
+      <p>
+        Sign-in happens with your account provider. Presently stores the session
+        and cryptographic keys in your device’s secure storage. The Presently
+        metadata service does not receive your password, access tokens, refresh
+        tokens, private keys, or captured photos.
+      </p>
+
+      <h2>Local Storage and Your Photo Library</h2>
+      <p>
+        Pending and failed drafts may remain on your device so a post can be
+        retried safely. Saving a separate copy to your photo library follows the
+        preference you choose in the app.
+      </p>
+
+      <h2>Diagnostics</h2>
+      <p>
+        Presently does not use advertising trackers. If privacy-safe diagnostics
+        are added for beta testing, they will measure app outcomes such as
+        capture or publish success and will never contain photos, tokens, or
+        private keys.
+      </p>
+
+      <h2>Questions</h2>
+      <p>
+        Visit <a href="/support/">Support</a> for the current way to report a
+        privacy concern or request help.
+      </p>
+    </article>
+  </main>
+  <SiteFooter />
+</SiteLayout>

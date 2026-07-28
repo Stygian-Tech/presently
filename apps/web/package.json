@@ -1,0 +1,16 @@
+{
+  "name": "@presently/marketing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "check": "astro check",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "devDependencies": {
+    "@astrojs/check": "latest",
+    "astro": "7.1.4",
+    "typescript": "latest"
+  }
+}

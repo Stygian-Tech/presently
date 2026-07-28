@@ -11,6 +11,7 @@ library, and publishes a `blue.flashes.story.post` record.
 apps/
   android/          Jetpack Compose, CameraX, and Room
   ios/              SwiftUI, AVFoundation, and SwiftData
+  web/              Astro marketing, privacy, terms, and support site
 services/
   oauth-worker/     Go ATProto OAuth metadata service for Vercel containers
 docs/
@@ -78,6 +79,19 @@ from `services/oauth-worker/.env.example`. Vercel detects the root
 `vercel.json` container preset, builds
 `services/oauth-worker/Dockerfile.vercel`, and routes public requests to the
 container listening on the platform-provided `PORT`.
+
+### Marketing Site
+
+```sh
+cd apps/web
+npm install
+npm run check
+npm run build
+```
+
+The static output in `apps/web/dist` is deployed to wisp.place by
+`.github/workflows/deploy-marketing-wisp.yml`. See `apps/web/README.md` for the
+required GitHub environment variables and app-password secret.
 
 ## Reference material
 
