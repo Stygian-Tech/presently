@@ -1,7 +1,7 @@
 # Presently Marketing Site
 
-The static Astro site for Presently. It builds to `dist/` and is served by the
-repository's root Vercel container alongside the OAuth metadata service.
+The static Astro site for Presently. Vercel builds it as the `web` service in
+the repository's multi-service deployment.
 
 ## Develop
 
@@ -22,8 +22,9 @@ the deployed origin.
 
 ## Deployment
 
-The `presently` Vercel project deploys pushes to `main`. Its root
-`Dockerfile.vercel` runs the site checks and build before copying `dist/` into
-the final container. `PUBLIC_SITE_URL` defaults to `https://presently.photo` and
-can be supplied as a container build argument when a different canonical origin
-is required.
+The `presently` Vercel project deploys pushes to `main`. Its root `vercel.json`
+routes `presently.photo` and the project's Vercel aliases to this service while
+`oauth.presently.photo` routes to the separate Go container service.
+
+`PUBLIC_SITE_URL` defaults to `https://presently.photo` for canonical and social
+URLs.

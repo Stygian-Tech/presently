@@ -1,4 +1,33 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "container"
+  "services": {
+    "web": {
+      "root": "apps/web/",
+      "framework": "astro"
+    },
+    "oauth": {
+      "root": "services/oauth-worker/",
+      "entrypoint": "Dockerfile.vercel"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "oauth.presently.photo"
+        }
+      ],
+      "destination": {
+        "service": "oauth"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "web"
+      }
+    }
+  ]
 }
