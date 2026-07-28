@@ -8,15 +8,34 @@
 
 /* Begin PBXBuildFile section */
 		0C1573C30B6FD77141ECEBF5 /* FlashesStoryRecordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F537D1774090DDECC6E492C8 /* FlashesStoryRecordTests.swift */; };
+		2664589237E03538648B2130 /* PresentlyControls.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FB069B312F53097B44D5EF86 /* PresentlyControls.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		26E867E829158B03932A9968 /* ATProtoOAuthClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C19C46E316A7D27E6499A79 /* ATProtoOAuthClient.swift */; };
+		428DDC5896099565A7E6850D /* PresentlyCaptureExtension.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = 18C62D3DA51BDD4AC3DF41E6 /* PresentlyCaptureExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4C26DFF826ACC8C48C0BD58F /* OAuthDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BAB1E6E2F59642B42E3DE4D /* OAuthDiscovery.swift */; };
 		506175B529C0909BFBB4B11D /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = E908AE01B1048CAAC2648097 /* CameraPreview.swift */; };
+		51DFFC88A487C79FF6AC7622 /* OAuthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFC425D92697D224FDA7AED /* OAuthModels.swift */; };
 		536F5F78D5F56C87025CA781 /* FlashesStoryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AB4782F27C889A7252EA9C /* FlashesStoryRecord.swift */; };
+		58AD5E8C3F277CFD27060108 /* OAuthSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58AF028905EE7821A59A9F1B /* OAuthSessionManager.swift */; };
+		6A652C21D224601216E58CD9 /* PresentlyCaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */; };
 		76500A7F963D25248439F0B2 /* PhotoLibrarySaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E15815BF2DCA11AFA272D709 /* PhotoLibrarySaver.swift */; };
+		782161F5A188C297DA7FEE0C /* PresentlyLockedCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F163D2FE11E08BD65E5170BE /* PresentlyLockedCameraView.swift */; };
+		798A83DBCD9FF092000BA5BC /* PresentlyCaptureExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 373A5090A3325512D060C6B7 /* PresentlyCaptureExtension.swift */; };
 		83715379BCA2BB3F4C2B010E /* CameraScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDB871280117FB16ADE67DF4 /* CameraScreen.swift */; };
 		8EEEB99F66911D832A8617F7 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08F3917CA9B236EDF9ADC2C /* AppSettings.swift */; };
+		8FC6E1531141CA81BEDDFB55 /* DPoP.swift in Sources */ = {isa = PBXBuildFile; fileRef = A478D1D9DDB0115BF9F408EF /* DPoP.swift */; };
 		9332A052C983AB1959E757B0 /* LocalStoryDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADB40AE90080E041CD96530D /* LocalStoryDraft.swift */; };
 		9649B7A160BF7F3C354C85DC /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6872B4AA1FDE60AA6459AB4F /* CameraController.swift */; };
+		9C0508F0F3DF6D21D7CEFB5C /* PresentlyControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92B489899837D0B298F780B /* PresentlyControls.swift */; };
 		A961ED2B4BC75548D1D59381 /* PresentlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64319EA167BD70178267DA5C /* PresentlyApp.swift */; };
+		B6D37D564714A50AA0EA7E0E /* OAuthConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93D49D37F46FF3BE1FFD887 /* OAuthConfiguration.swift */; };
+		B7BFDC8B45903445BA66CDF0 /* PresentlyCaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */; };
+		D0FD446C52945AEE4065469F /* OAuthHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1B2A90BD8252C5B347D830 /* OAuthHTTPClient.swift */; };
+		D68601EA6797BAEF382CFEAE /* PresentlyCaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */; };
 		E0BF4B9B9F3209926B8B4BAF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F962FC7879277CC62A48833F /* Assets.xcassets */; };
+		E78D545C82E1DE0880055715 /* FlashesActorProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA21055B48D762713167C90C /* FlashesActorProfile.swift */; };
+		F8CAA6D4044FD1203D49B136 /* OAuthSecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71700D3CF062076280CC22F1 /* OAuthSecureStore.swift */; };
+		FD1FDCC3197A0412F8922147 /* AccountSearchClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25E42A34F1CF11B3B82A9245 /* AccountSearchClient.swift */; };
+		FEA6F452E90B23AAA2E03495 /* AccountSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA704E436BCFF051125B370 /* AccountSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,21 +46,79 @@
 			remoteGlobalIDString = F84A6CD911EC101BBCDE276C;
 			remoteInfo = Presently;
 		};
+		7BA316A7E5A3361DD9F98CE2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FE2D886B3A5E1F2A63437638 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F8EA1A2032AEE9085F1D79CD;
+			remoteInfo = PresentlyControls;
+		};
+		7E362D3E00A1DC470E6C2D57 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FE2D886B3A5E1F2A63437638 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 39FBB950CD55DB43940737B8;
+			remoteInfo = PresentlyCaptureExtension;
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		798F5AE735D55A64B945FC8D /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				428DDC5896099565A7E6850D /* PresentlyCaptureExtension.appex in Embed ExtensionKit Extensions */,
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EE6E26C647EBB166558AD579 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2664589237E03538648B2130 /* PresentlyControls.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		0EFC425D92697D224FDA7AED /* OAuthModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthModels.swift; sourceTree = "<group>"; };
+		18C62D3DA51BDD4AC3DF41E6 /* PresentlyCaptureExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.extensionkit-extension"; includeInIndex = 0; path = PresentlyCaptureExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		25E42A34F1CF11B3B82A9245 /* AccountSearchClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSearchClient.swift; sourceTree = "<group>"; };
+		2BAB1E6E2F59642B42E3DE4D /* OAuthDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthDiscovery.swift; sourceTree = "<group>"; };
+		2E1CF365EE89DFFCFB0B0465 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		2EA704E436BCFF051125B370 /* AccountSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSheet.swift; sourceTree = "<group>"; };
+		373A5090A3325512D060C6B7 /* PresentlyCaptureExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyCaptureExtension.swift; sourceTree = "<group>"; };
 		38B62273AD256B7E1308AEF0 /* PresentlyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PresentlyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyCaptureIntent.swift; sourceTree = "<group>"; };
+		58AF028905EE7821A59A9F1B /* OAuthSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthSessionManager.swift; sourceTree = "<group>"; };
+		5C19C46E316A7D27E6499A79 /* ATProtoOAuthClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATProtoOAuthClient.swift; sourceTree = "<group>"; };
 		64319EA167BD70178267DA5C /* PresentlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyApp.swift; sourceTree = "<group>"; };
 		6872B4AA1FDE60AA6459AB4F /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
+		71700D3CF062076280CC22F1 /* OAuthSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthSecureStore.swift; sourceTree = "<group>"; };
+		7E1B2A90BD8252C5B347D830 /* OAuthHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthHTTPClient.swift; sourceTree = "<group>"; };
 		A08F3917CA9B236EDF9ADC2C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		A478D1D9DDB0115BF9F408EF /* DPoP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DPoP.swift; sourceTree = "<group>"; };
 		ADB40AE90080E041CD96530D /* LocalStoryDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStoryDraft.swift; sourceTree = "<group>"; };
 		B1AB4782F27C889A7252EA9C /* FlashesStoryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashesStoryRecord.swift; sourceTree = "<group>"; };
 		BDB871280117FB16ADE67DF4 /* CameraScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraScreen.swift; sourceTree = "<group>"; };
+		BE2B605D28A456F04965115E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C2C8752D8D776FE4AC5DB389 /* Presently.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Presently.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DA21055B48D762713167C90C /* FlashesActorProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashesActorProfile.swift; sourceTree = "<group>"; };
 		E15815BF2DCA11AFA272D709 /* PhotoLibrarySaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibrarySaver.swift; sourceTree = "<group>"; };
 		E908AE01B1048CAAC2648097 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
+		E92B489899837D0B298F780B /* PresentlyControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyControls.swift; sourceTree = "<group>"; };
+		E93D49D37F46FF3BE1FFD887 /* OAuthConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthConfiguration.swift; sourceTree = "<group>"; };
+		F163D2FE11E08BD65E5170BE /* PresentlyLockedCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyLockedCameraView.swift; sourceTree = "<group>"; };
 		F537D1774090DDECC6E492C8 /* FlashesStoryRecordTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashesStoryRecordTests.swift; sourceTree = "<group>"; };
 		F962FC7879277CC62A48833F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FB069B312F53097B44D5EF86 /* PresentlyControls.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PresentlyControls.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCF0E7842C334255D73722EF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -57,6 +134,25 @@
 			path = Camera;
 			sourceTree = "<group>";
 		};
+		100726923EB7096ADAC7ECD1 /* PresentlyControls */ = {
+			isa = PBXGroup;
+			children = (
+				2E1CF365EE89DFFCFB0B0465 /* Info.plist */,
+				E92B489899837D0B298F780B /* PresentlyControls.swift */,
+			);
+			path = PresentlyControls;
+			sourceTree = "<group>";
+		};
+		148FEFD53095A9243487208D /* PresentlyCaptureExtension */ = {
+			isa = PBXGroup;
+			children = (
+				BE2B605D28A456F04965115E /* Info.plist */,
+				373A5090A3325512D060C6B7 /* PresentlyCaptureExtension.swift */,
+				F163D2FE11E08BD65E5170BE /* PresentlyLockedCameraView.swift */,
+			);
+			path = PresentlyCaptureExtension;
+			sourceTree = "<group>";
+		};
 		28C34A30CB6B4A3CA7FEE843 /* PresentlyTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -69,6 +165,8 @@
 			isa = PBXGroup;
 			children = (
 				B65F4ED8031BB0709737B25A /* Presently */,
+				148FEFD53095A9243487208D /* PresentlyCaptureExtension */,
+				100726923EB7096ADAC7ECD1 /* PresentlyControls */,
 				28C34A30CB6B4A3CA7FEE843 /* PresentlyTests */,
 				BE469EF6B46D879725A2A780 /* Products */,
 			);
@@ -80,6 +178,31 @@
 				64319EA167BD70178267DA5C /* PresentlyApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		4BF575BA8D23C5A50070A896 /* OAuth */ = {
+			isa = PBXGroup;
+			children = (
+				25E42A34F1CF11B3B82A9245 /* AccountSearchClient.swift */,
+				2EA704E436BCFF051125B370 /* AccountSheet.swift */,
+				5C19C46E316A7D27E6499A79 /* ATProtoOAuthClient.swift */,
+				A478D1D9DDB0115BF9F408EF /* DPoP.swift */,
+				E93D49D37F46FF3BE1FFD887 /* OAuthConfiguration.swift */,
+				2BAB1E6E2F59642B42E3DE4D /* OAuthDiscovery.swift */,
+				7E1B2A90BD8252C5B347D830 /* OAuthHTTPClient.swift */,
+				0EFC425D92697D224FDA7AED /* OAuthModels.swift */,
+				71700D3CF062076280CC22F1 /* OAuthSecureStore.swift */,
+				58AF028905EE7821A59A9F1B /* OAuthSessionManager.swift */,
+			);
+			path = OAuth;
+			sourceTree = "<group>";
+		};
+		6DE77F9E2A27A7D82E90A64B /* SystemIntegration */ = {
+			isa = PBXGroup;
+			children = (
+				510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */,
+			);
+			path = SystemIntegration;
 			sourceTree = "<group>";
 		};
 		8843A36C5D39217A0B9914C2 /* Resources */ = {
@@ -94,6 +217,7 @@
 		92480E04970DF1B621F83FF0 /* Story */ = {
 			isa = PBXGroup;
 			children = (
+				DA21055B48D762713167C90C /* FlashesActorProfile.swift */,
 				B1AB4782F27C889A7252EA9C /* FlashesStoryRecord.swift */,
 			);
 			path = Story;
@@ -114,8 +238,10 @@
 				431518B881E2A760E9F6EB59 /* App */,
 				046296247CBE04EF60C85956 /* Camera */,
 				A1BA7DA1B9F570DE894FF817 /* Models */,
+				4BF575BA8D23C5A50070A896 /* OAuth */,
 				8843A36C5D39217A0B9914C2 /* Resources */,
 				92480E04970DF1B621F83FF0 /* Story */,
+				6DE77F9E2A27A7D82E90A64B /* SystemIntegration */,
 			);
 			path = Presently;
 			sourceTree = "<group>";
@@ -124,6 +250,8 @@
 			isa = PBXGroup;
 			children = (
 				C2C8752D8D776FE4AC5DB389 /* Presently.app */,
+				18C62D3DA51BDD4AC3DF41E6 /* PresentlyCaptureExtension.appex */,
+				FB069B312F53097B44D5EF86 /* PresentlyControls.appex */,
 				38B62273AD256B7E1308AEF0 /* PresentlyTests.xctest */,
 			);
 			name = Products;
@@ -150,16 +278,37 @@
 			productReference = 38B62273AD256B7E1308AEF0 /* PresentlyTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		39FBB950CD55DB43940737B8 /* PresentlyCaptureExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6DF27FA67E957B51FE92538C /* Build configuration list for PBXNativeTarget "PresentlyCaptureExtension" */;
+			buildPhases = (
+				522D774B85B5D21C4FC3C544 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PresentlyCaptureExtension;
+			packageProductDependencies = (
+			);
+			productName = PresentlyCaptureExtension;
+			productReference = 18C62D3DA51BDD4AC3DF41E6 /* PresentlyCaptureExtension.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
+		};
 		F84A6CD911EC101BBCDE276C /* Presently */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7BE0FFD126769085B1B29727 /* Build configuration list for PBXNativeTarget "Presently" */;
 			buildPhases = (
 				12E4ECED554E98805D13D32B /* Sources */,
 				02C0236CAD60E1B6C15B0339 /* Resources */,
+				EE6E26C647EBB166558AD579 /* Embed Foundation Extensions */,
+				798F5AE735D55A64B945FC8D /* Embed ExtensionKit Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F35EF847AABB41D637003AA7 /* PBXTargetDependency */,
+				17D00360A311D0B40E6984DE /* PBXTargetDependency */,
 			);
 			name = Presently;
 			packageProductDependencies = (
@@ -167,6 +316,23 @@
 			productName = Presently;
 			productReference = C2C8752D8D776FE4AC5DB389 /* Presently.app */;
 			productType = "com.apple.product-type.application";
+		};
+		F8EA1A2032AEE9085F1D79CD /* PresentlyControls */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D629C27FE69A8E045C6854D3 /* Build configuration list for PBXNativeTarget "PresentlyControls" */;
+			buildPhases = (
+				787B855DA229C04ED4D2E8C0 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PresentlyControls;
+			packageProductDependencies = (
+			);
+			productName = PresentlyControls;
+			productReference = FB069B312F53097B44D5EF86 /* PresentlyControls.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -181,7 +347,15 @@
 						DevelopmentTeam = G39TU2R26A;
 						ProvisioningStyle = Automatic;
 					};
+					39FBB950CD55DB43940737B8 = {
+						DevelopmentTeam = G39TU2R26A;
+						ProvisioningStyle = Automatic;
+					};
 					F84A6CD911EC101BBCDE276C = {
+						DevelopmentTeam = G39TU2R26A;
+						ProvisioningStyle = Automatic;
+					};
+					F8EA1A2032AEE9085F1D79CD = {
 						DevelopmentTeam = G39TU2R26A;
 						ProvisioningStyle = Automatic;
 					};
@@ -202,6 +376,8 @@
 			projectRoot = "";
 			targets = (
 				F84A6CD911EC101BBCDE276C /* Presently */,
+				39FBB950CD55DB43940737B8 /* PresentlyCaptureExtension */,
+				F8EA1A2032AEE9085F1D79CD /* PresentlyControls */,
 				2D5F9CC7B8E89256A7BE0D0D /* PresentlyTests */,
 			);
 		};
@@ -223,14 +399,26 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				26E867E829158B03932A9968 /* ATProtoOAuthClient.swift in Sources */,
+				FD1FDCC3197A0412F8922147 /* AccountSearchClient.swift in Sources */,
+				FEA6F452E90B23AAA2E03495 /* AccountSheet.swift in Sources */,
 				8EEEB99F66911D832A8617F7 /* AppSettings.swift in Sources */,
 				9649B7A160BF7F3C354C85DC /* CameraController.swift in Sources */,
 				506175B529C0909BFBB4B11D /* CameraPreview.swift in Sources */,
 				83715379BCA2BB3F4C2B010E /* CameraScreen.swift in Sources */,
+				8FC6E1531141CA81BEDDFB55 /* DPoP.swift in Sources */,
+				E78D545C82E1DE0880055715 /* FlashesActorProfile.swift in Sources */,
 				536F5F78D5F56C87025CA781 /* FlashesStoryRecord.swift in Sources */,
 				9332A052C983AB1959E757B0 /* LocalStoryDraft.swift in Sources */,
+				B6D37D564714A50AA0EA7E0E /* OAuthConfiguration.swift in Sources */,
+				4C26DFF826ACC8C48C0BD58F /* OAuthDiscovery.swift in Sources */,
+				D0FD446C52945AEE4065469F /* OAuthHTTPClient.swift in Sources */,
+				51DFFC88A487C79FF6AC7622 /* OAuthModels.swift in Sources */,
+				F8CAA6D4044FD1203D49B136 /* OAuthSecureStore.swift in Sources */,
+				58AD5E8C3F277CFD27060108 /* OAuthSessionManager.swift in Sources */,
 				76500A7F963D25248439F0B2 /* PhotoLibrarySaver.swift in Sources */,
 				A961ED2B4BC75548D1D59381 /* PresentlyApp.swift in Sources */,
+				B7BFDC8B45903445BA66CDF0 /* PresentlyCaptureIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,13 +430,42 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		522D774B85B5D21C4FC3C544 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				798A83DBCD9FF092000BA5BC /* PresentlyCaptureExtension.swift in Sources */,
+				D68601EA6797BAEF382CFEAE /* PresentlyCaptureIntent.swift in Sources */,
+				782161F5A188C297DA7FEE0C /* PresentlyLockedCameraView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		787B855DA229C04ED4D2E8C0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6A652C21D224601216E58CD9 /* PresentlyCaptureIntent.swift in Sources */,
+				9C0508F0F3DF6D21D7CEFB5C /* PresentlyControls.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		17D00360A311D0B40E6984DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 39FBB950CD55DB43940737B8 /* PresentlyCaptureExtension */;
+			targetProxy = 7E362D3E00A1DC470E6C2D57 /* PBXContainerItemProxy */;
+		};
 		4648A8721D55A5C891B56DF7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = F84A6CD911EC101BBCDE276C /* Presently */;
 			targetProxy = 2738487121C348F1A19A7630 /* PBXContainerItemProxy */;
+		};
+		F35EF847AABB41D637003AA7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F8EA1A2032AEE9085F1D79CD /* PresentlyControls */;
+			targetProxy = 7BA316A7E5A3361DD9F98CE2 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -408,6 +625,56 @@
 			};
 			name = Debug;
 		};
+		51FFA5A5C5BC20DB29C4F76C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = PresentlyControls/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = tech.stygian.presently.controls;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		784E63FDF1F1FC8B4342A43C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = PresentlyControls/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = tech.stygian.presently.controls;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A964452F9C18507B771CE543 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = PresentlyCaptureExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = tech.stygian.presently.capture;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		B8278182388C200ED4571E5D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -442,9 +709,34 @@
 			};
 			name = Release;
 		};
+		E5F9B79192B5303DEDCB3FB1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = PresentlyCaptureExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = tech.stygian.presently.capture;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		6DF27FA67E957B51FE92538C /* Build configuration list for PBXNativeTarget "PresentlyCaptureExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A964452F9C18507B771CE543 /* Debug */,
+				E5F9B79192B5303DEDCB3FB1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		7BE0FFD126769085B1B29727 /* Build configuration list for PBXNativeTarget "Presently" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -468,6 +760,15 @@
 			buildConfigurations = (
 				101FAF25B8052FA930261B0C /* Debug */,
 				440C21B7591E1A4EF1B75EBD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D629C27FE69A8E045C6854D3 /* Build configuration list for PBXNativeTarget "PresentlyControls" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				784E63FDF1F1FC8B4342A43C /* Debug */,
+				51FFA5A5C5BC20DB29C4F76C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

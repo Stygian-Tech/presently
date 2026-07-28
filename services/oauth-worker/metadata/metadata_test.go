@@ -26,7 +26,7 @@ func TestBuildDeclaresOnlyMVPPermissions(t *testing.T) {
 	if document.Scope != Scope {
 		t.Fatalf("unexpected scope: %s", document.Scope)
 	}
-	if document.Scope != "atproto repo:blue.flashes.story.post?action=create blob:image/jpeg" {
+	if document.Scope != "atproto repo:blue.flashes.actor.profile?action=create repo:blue.flashes.story.post?action=create blob:image/jpeg" {
 		t.Fatalf("scope is broader than the MVP contract: %s", document.Scope)
 	}
 	if !document.DPoPBoundAccessTokens || document.TokenEndpointAuth != "none" {

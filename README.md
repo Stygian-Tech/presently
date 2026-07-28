@@ -24,10 +24,15 @@ docs/
   story draft locally.
 - Both clients model the exact current Flashes story record.
 - The Go OAuth service serves native public-client metadata with the minimum
-  create-only story and JPEG blob permissions.
-- OAuth session handling, DPoP request signing, blob upload, and record creation
-  are the next vertical slice. Those operations remain behind explicit
-  publisher interfaces so the UI does not fake a successful publish.
+  create-only Flashes actor, story, and JPEG blob permissions.
+- The iOS app implements OAuth session handling and DPoP request signing. Blob
+  upload and story creation remain the next vertical slice. Login idempotently
+  provisions `blue.flashes.actor.profile/self` when the account does not
+  already have one.
+- On iOS 18 and later, Presently provides a Camera Control zoom/camera picker,
+  a locked capture extension, and an Open Presently Camera control for Control
+  Center and the Lock Screen. The user can select that control as the Camera
+  Control or Action button launch action in system settings.
 
 ## Develop
 

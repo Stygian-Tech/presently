@@ -1,9 +1,11 @@
+import LockedCameraCapture
 import SwiftData
 import SwiftUI
 import UIKit
 
 struct CameraScreen: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(OAuthSessionManager.self) private var auth
     @Query private var storedSettings: [AppSettings]
     @State private var camera = CameraController()
     @State private var feedbackMessage: String?
@@ -30,6 +32,10 @@ struct CameraScreen: View {
             ensureSettingsExist()
             await camera.start()
         }
+        .task {
+            guard #available(iOS 18.0, *) else { return }
+            await importLockedCameraCaptures()
+        }
         .onDisappear {
             camera.stop()
         }
@@ -39,6 +45,8 @@ struct CameraScreen: View {
                 if let settings {
                     CameraSettingsSheet(settings: settings)
                 }
+            case .account:
+                AccountSheet(auth: auth)
             }
         }
         .alert(
@@ -56,7 +64,11 @@ struct CameraScreen: View {
 
     private var liveCamera: some View {
         ZStack {
-            CameraPreview(session: camera.session)
+            CameraPreview(
+                session: camera.session,
+                isCaptureEnabled: camera.state == .ready && !camera.isCapturing,
+                onCapture: camera.capture
+            )
                 .ignoresSafeArea()
                 .gesture(
                     MagnifyGesture()
@@ -79,6 +91,23 @@ struct CameraScreen: View {
                         .padding(.vertical, 8)
                         .background(.black.opacity(0.45), in: Capsule())
                     Spacer()
+                    Button {
+                        presentedSheet = .account
+                    } label: {
+                        Image(
+                            systemName: auth.session == nil
+                                ? "person.crop.circle"
+                                : "person.crop.circle.fill.badge.checkmark"
+                        )
+                        .font(.body.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                        .background(.black.opacity(0.45), in: Circle())
+                    }
+                    .accessibilityLabel(
+                        auth.session == nil
+                            ? "Connect account"
+                            : "Connected account"
+                    )
                     Button {
                         presentedSheet = .settings
                     } label: {
@@ -235,12 +264,16 @@ struct CameraScreen: View {
                     Button {
                         queueDraft(imageData: imageData)
                     } label: {
-                        Label("Post story", systemImage: "paperplane.fill")
+                        Label("Post Story", systemImage: "paperplane.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Text("The publishing transport is intentionally gated until native OAuth and DPoP are wired.")
+                    Text(
+                        auth.session == nil
+                            ? "Log Into the Atmosphere before posting."
+                            : "This account has the upload and create-story permissions required to publish."
+                    )
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -255,6 +288,56 @@ struct CameraScreen: View {
         guard storedSettings.isEmpty else { return }
         modelContext.insert(AppSettings())
         try? modelContext.save()
+    }
+
+    @available(iOS 18.0, *)
+    private func importLockedCameraCaptures() async {
+        for await update in LockedCameraCaptureManager.shared.sessionContentUpdates {
+            switch update {
+            case let .initial(urls):
+                for url in urls {
+                    await importLockedCameraCapture(at: url)
+                }
+            case let .added(url):
+                await importLockedCameraCapture(at: url)
+            case .removed:
+                break
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    @available(iOS 18.0, *)
+    private func importLockedCameraCapture(at directoryURL: URL) async {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        let imageFiles = files.filter {
+            ["jpg", "jpeg"].contains($0.pathExtension.lowercased())
+        }
+
+        for fileURL in imageFiles {
+            guard let data = try? Data(contentsOf: fileURL),
+                  data.count <= FlashesStoryContract.maximumImageBytes
+            else {
+                continue
+            }
+            modelContext.insert(LocalStoryDraft(imageData: data))
+        }
+
+        guard !imageFiles.isEmpty else { return }
+        do {
+            try modelContext.save()
+            try await LockedCameraCaptureManager.shared
+                .invalidateSessionContent(at: directoryURL)
+            feedbackMessage = imageFiles.count == 1
+                ? "Camera Control capture saved as a pending story."
+                : "\(imageFiles.count) Camera Control captures saved as pending stories."
+        } catch {
+            feedbackMessage = "Camera Control captures could not be imported: \(error.localizedDescription)"
+        }
     }
 
     @ViewBuilder
@@ -276,6 +359,10 @@ struct CameraScreen: View {
             feedbackMessage = "This image exceeds Flashes' 10 MiB story limit."
             return
         }
+        guard auth.session?.canPublishStory == true else {
+            presentedSheet = .account
+            return
+        }
 
         modelContext.insert(LocalStoryDraft(imageData: imageData))
         do {
@@ -290,13 +377,13 @@ struct CameraScreen: View {
             Task {
                 do {
                     try await PhotoLibrarySaver.save(jpegData: imageData)
-                    feedbackMessage = "Story saved as a pending draft and copied to Photos. OAuth publishing is the next slice."
+                    feedbackMessage = "Story saved as a pending draft and copied to Photos. Your account is connected for publishing."
                 } catch {
                     feedbackMessage = "Draft saved, but Photos failed: \(error.localizedDescription)"
                 }
             }
         } else {
-            feedbackMessage = "Story saved as a pending draft. OAuth publishing is the next slice."
+            feedbackMessage = "Story saved as a pending draft. Your account is connected for publishing."
         }
         saveThisPhoto = false
         camera.retake()
@@ -312,6 +399,7 @@ struct CameraScreen: View {
 
 private enum CameraSheet: String, Identifiable {
     case settings
+    case account
 
     var id: Self { self }
 }
@@ -345,7 +433,7 @@ private struct CameraSettingsSheet: View {
                     .pickerStyle(.inline)
                     .labelsHidden()
                 } header: {
-                    Text("Save captured photos")
+                    Text("Save Captured Photos")
                 } footer: {
                     Text("This controls whether posted photos are also added to your photo library.")
                 }
@@ -372,4 +460,5 @@ private struct CameraSettingsSheet: View {
 #Preview {
     CameraScreen()
         .modelContainer(for: [LocalStoryDraft.self, AppSettings.self], inMemory: true)
+        .environment(OAuthSessionManager())
 }

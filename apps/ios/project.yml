@@ -28,6 +28,7 @@ targets:
         NSCameraUsageDescription: Presently uses the camera to create the story you choose to post.
         NSPhotoLibraryAddUsageDescription: Presently saves a copy only when you enable Save to Photos.
         UILaunchScreen: {}
+        UIRequiresFullScreen: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
@@ -35,9 +36,50 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.stygian.presently
+    dependencies:
+      - target: PresentlyControls
+        embed: true
+      - target: PresentlyCaptureExtension
+        embed: true
     scheme:
       testTargets:
         - PresentlyTests
+  PresentlyControls:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - PresentlyControls
+      - path: Presently/SystemIntegration/PresentlyCaptureIntent.swift
+        group: Presently/SystemIntegration
+    info:
+      path: PresentlyControls/Info.plist
+      properties:
+        CFBundleDisplayName: Presently Camera
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.stygian.presently.controls
+        SKIP_INSTALL: "YES"
+  PresentlyCaptureExtension:
+    type: extensionkit-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - PresentlyCaptureExtension
+      - path: Presently/SystemIntegration/PresentlyCaptureIntent.swift
+        group: Presently/SystemIntegration
+    info:
+      path: PresentlyCaptureExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Presently Camera
+        EXAppExtensionAttributes:
+          EXExtensionPointIdentifier: com.apple.securecapture
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.stygian.presently.capture
+        SKIP_INSTALL: "YES"
   PresentlyTests:
     type: bundle.unit-test
     platform: iOS
