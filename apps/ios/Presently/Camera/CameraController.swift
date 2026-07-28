@@ -30,6 +30,28 @@ final class CameraController: NSObject {
 
     private let cameraSession = CameraSession()
 
+    override init() {
+        super.init()
+        cameraSession.onZoomChanged = { [weak self] zoomFactor in
+            Task { @MainActor in
+                self?.zoomFactor = zoomFactor
+            }
+        }
+        cameraSession.onCameraChanged = { [weak self] facing, capabilities in
+            Task { @MainActor in
+                guard let self else { return }
+                self.facing = facing
+                self.apply(capabilities)
+                await self.updateCaptureContext()
+            }
+        }
+        cameraSession.onError = { [weak self] message in
+            Task { @MainActor in
+                self?.state = .unavailable(message)
+            }
+        }
+    }
+
     var session: AVCaptureSession {
         cameraSession.session
     }
@@ -56,6 +78,10 @@ final class CameraController: NSObject {
         guard state != .ready else { return }
 
         state = .requestingPermission
+        if #available(iOS 18.0, *),
+           let context = try? await PresentlyCaptureIntent.appContext {
+            facing = Facing(context.facing)
+        }
         let authorized: Bool
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -102,6 +128,7 @@ final class CameraController: NSObject {
             let capabilities = try await cameraSession.switchCamera(to: requestedFacing)
             facing = requestedFacing
             apply(capabilities)
+            await updateCaptureContext()
         } catch {
             state = .unavailable(error.localizedDescription)
         }
@@ -134,6 +161,23 @@ final class CameraController: NSObject {
             selfieFramingMode = .portrait
         }
     }
+
+    private func updateCaptureContext() async {
+        guard #available(iOS 18.0, *) else { return }
+        try? await PresentlyCaptureIntent.updateAppContext(
+            PresentlyCaptureContext(facing: facing.captureFacing)
+        )
+    }
+}
+
+private extension CameraController.Facing {
+    init(_ facing: PresentlyCaptureFacing) {
+        self = facing == .back ? .back : .front
+    }
+
+    var captureFacing: PresentlyCaptureFacing {
+        self == .back ? .back : .front
+    }
 }
 
 extension CameraController: AVCapturePhotoCaptureDelegate {
@@ -157,7 +201,7 @@ extension CameraController: AVCapturePhotoCaptureDelegate {
 }
 
 final class CameraSessionQueue: @unchecked Sendable {
-    private let queue: DispatchQueue
+    let queue: DispatchQueue
 
     init(label: String) {
         queue = DispatchQueue(label: label, qos: .userInitiated)
@@ -182,7 +226,7 @@ final class CameraSessionQueue: @unchecked Sendable {
     }
 }
 
-private final class CameraSession: @unchecked Sendable {
+private final class CameraSession: NSObject, @unchecked Sendable {
     let session = AVCaptureSession()
 
     private let photoOutput = AVCapturePhotoOutput()
@@ -192,6 +236,11 @@ private final class CameraSession: @unchecked Sendable {
     private var zoomDisplayScale = 1.0
     private var isConfigured = false
     private var smartFramingCoordinator: AnyObject?
+    var onZoomChanged: (@Sendable (Double) -> Void)?
+    var onCameraChanged: (
+        @Sendable (CameraController.Facing, CameraCapabilities) -> Void
+    )?
+    var onError: (@Sendable (String) -> Void)?
 
     func start(facing: CameraController.Facing) async throws -> CameraCapabilities {
         try await sessionQueue.perform { [self] in
@@ -305,6 +354,7 @@ private final class CameraSession: @unchecked Sendable {
 
         self.camera = camera
         cameraInput = input
+        configureCameraControls(for: camera, facing: facing)
 
         if facing == .front, #available(iOS 26.0, *),
            camera.activeFormat.isSmartFramingSupported,
@@ -323,6 +373,60 @@ private final class CameraSession: @unchecked Sendable {
             canSwitchCamera: Self.camera(for: facing == .back ? .front : .back) != nil,
             supportsSmartSelfieFraming: supportsSmartSelfieFraming
         )
+    }
+
+    private func configureCameraControls(
+        for camera: AVCaptureDevice,
+        facing: CameraController.Facing
+    ) {
+        guard #available(iOS 18.0, *), session.supportsControls else { return }
+
+        session.setControlsDelegate(self, queue: sessionQueue.queue)
+        for control in session.controls {
+            session.removeControl(control)
+        }
+
+        let zoomControl = AVCaptureSystemZoomSlider(device: camera) {
+            [weak self, weak camera] zoomFactor in
+            guard let self, let camera else { return }
+            let displayZoomFactor = Double(
+                zoomFactor * camera.displayVideoZoomFactorMultiplier
+            )
+            onZoomChanged?(displayZoomFactor)
+        }
+        if session.canAddControl(zoomControl) {
+            session.addControl(zoomControl)
+        }
+
+        guard Self.camera(for: .back) != nil,
+              Self.camera(for: .front) != nil
+        else {
+            return
+        }
+
+        let cameraPicker = AVCaptureIndexPicker(
+            "Camera",
+            symbolName: "arrow.triangle.2.circlepath.camera",
+            localizedIndexTitles: ["Back", "Front"]
+        )
+        cameraPicker.setActionQueue(sessionQueue.queue) {
+            [weak self] selectedIndex in
+            guard let self else { return }
+            let selectedFacing: CameraController.Facing =
+                selectedIndex == 0 ? .back : .front
+            guard selectedFacing != facing else { return }
+
+            do {
+                let capabilities = try configure(facing: selectedFacing)
+                onCameraChanged?(selectedFacing, capabilities)
+            } catch {
+                onError?(error.localizedDescription)
+            }
+        }
+        cameraPicker.selectedIndex = facing == .back ? 0 : 1
+        if session.canAddControl(cameraPicker) {
+            session.addControl(cameraPicker)
+        }
     }
 
     private func stopSmartFraming() {
@@ -394,6 +498,21 @@ private final class CameraSession: @unchecked Sendable {
 
         return 1 / firstSwitchFactor.doubleValue
     }
+}
+
+@available(iOS 18.0, *)
+extension CameraSession: AVCaptureSessionControlsDelegate {
+    func sessionControlsDidBecomeActive(_ session: AVCaptureSession) {}
+
+    func sessionControlsWillEnterFullscreenAppearance(
+        _ session: AVCaptureSession
+    ) {}
+
+    func sessionControlsWillExitFullscreenAppearance(
+        _ session: AVCaptureSession
+    ) {}
+
+    func sessionControlsDidBecomeInactive(_ session: AVCaptureSession) {}
 }
 
 private struct CameraCapabilities: Sendable {

@@ -137,7 +137,8 @@ capture-to-publish completion without introducing a feed.
 - A user can always retake before any network mutation.
 - Saving to the device is opt-in and its failure does not silently block post.
 - Posting uses only:
-  `atproto repo:blue.flashes.story.post?action=create blob:image/jpeg`.
+  `atproto repo:blue.flashes.actor.profile?action=create
+  repo:blue.flashes.story.post?action=create blob:image/jpeg`.
 - Record `$type` and collection both equal `blue.flashes.story.post`.
 - `image` is the exact blob object returned by the PDS.
 - `createdAt` is UTC RFC 3339 and `expiresInMinutes` is `1440`.

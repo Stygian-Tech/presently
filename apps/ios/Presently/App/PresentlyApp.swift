@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct PresentlyApp: App {
     private let modelContainer: ModelContainer
+    @State private var auth = OAuthSessionManager()
 
     init() {
         do {
@@ -19,6 +20,12 @@ struct PresentlyApp: App {
     var body: some Scene {
         WindowGroup {
             CameraScreen()
+                .environment(auth)
+                .onOpenURL { url in
+                    Task {
+                        await auth.handleCallback(url)
+                    }
+                }
         }
         .modelContainer(modelContainer)
     }
