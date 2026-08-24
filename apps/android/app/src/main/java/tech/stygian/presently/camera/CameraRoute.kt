@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -13,6 +14,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -55,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import tech.stygian.presently.data.AppSettings
+import tech.stygian.presently.PresentlyLinks
 import tech.stygian.presently.data.DefaultCamera
 import tech.stygian.presently.data.LocalStoryDraft
 import tech.stygian.presently.data.PresentlyDatabase
@@ -236,6 +239,18 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                     dao.upsertSettings(
                         settings.copy(defaultCamera = defaultCamera.name),
                     )
+                }
+            },
+            onOpenFeedbackBoard = {
+                runCatching {
+                    CustomTabsIntent.Builder()
+                        .setShowTitle(true)
+                        .build()
+                        .launchUrl(context, Uri.parse(PresentlyLinks.FeedbackBoard))
+                }.onFailure {
+                    scope.launch {
+                        snackbar.showSnackbar("Could not open the feedback board.")
+                    }
                 }
             },
             onDismiss = { showSettings = false },

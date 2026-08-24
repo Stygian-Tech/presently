@@ -134,7 +134,7 @@ struct CameraScreen: View {
                             .frame(width: 44, height: 44)
                             .background(.black.opacity(0.45), in: Circle())
                     }
-                    .accessibilityLabel("Camera settings")
+                    .accessibilityLabel("Settings")
                 }
                 .foregroundStyle(.white)
                 .padding()
@@ -537,8 +537,19 @@ private struct CameraSettingsSheet: View {
                 } footer: {
                     Text("The camera switch button still changes cameras for the current session.")
                 }
+
+                Section {
+                    Link(destination: PresentlyLinks.feedbackBoard) {
+                        Label("Open Feedback Board", systemImage: "arrow.up.right.square")
+                    }
+                    .accessibilityHint("Opens the public Presently board on UserInput")
+                } header: {
+                    Text("Feedback")
+                } footer: {
+                    Text("Report a bug, request a feature, ask a question, or leave a comment.")
+                }
             }
-            .navigationTitle("Camera Settings")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
