@@ -3,7 +3,8 @@ package tech.stygian.presently.camera
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -13,7 +14,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.Image
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -43,9 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,12 +53,17 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import tech.stygian.presently.editor.StoryComposition
+import tech.stygian.presently.editor.StoryLayer
+import tech.stygian.presently.editor.StoryEditor
+import tech.stygian.presently.editor.StoryEditorStore
 import tech.stygian.presently.data.AppSettings
+import tech.stygian.presently.PresentlyLinks
 import tech.stygian.presently.data.DefaultCamera
 import tech.stygian.presently.data.LocalStoryDraft
 import tech.stygian.presently.data.PresentlyDatabase
-import tech.stygian.presently.story.FlashesStoryContract
-import tech.stygian.presently.story.ATProtoTid
 import tech.stygian.presently.oauth.AccountSheet
 import tech.stygian.presently.oauth.OAuthSessionManager
 import java.io.File
@@ -114,6 +118,7 @@ fun CameraRoute(auth: OAuthSessionManager) {
 private fun CameraScreen(auth: OAuthSessionManager) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentActivity = LocalActivity.current
     val database = remember { PresentlyDatabase.get(context) }
     val dao = remember { database.presentlyDao() }
     val settingsFlow = remember(dao) {
@@ -145,6 +150,67 @@ private fun CameraScreen(auth: OAuthSessionManager) {
     var canSwitchCamera by remember { mutableStateOf(false) }
     var isPublishing by remember { mutableStateOf(false) }
     var activeDraft by remember { mutableStateOf<LocalStoryDraft?>(null) }
+    val editorStore = remember { StoryEditorStore(context.applicationContext, dao) }
+    val editorWrites = remember { Mutex() }
+    var composition by remember { mutableStateOf(StoryComposition()) }
+    var stickerAssets by remember { mutableStateOf<Map<String, android.graphics.Bitmap>>(emptyMap()) }
+    var editorReady by remember { mutableStateOf(false) }
+    var editorTransforming by remember { mutableStateOf(false) }
+    var editorBusy by remember { mutableStateOf(false) }
+    var pendingEditorWrites by remember { mutableIntStateOf(0) }
+
+    fun reportEditorError(error: Throwable) {
+        scope.launch { snackbar.showSnackbar(error.localizedMessage ?: "The story could not be edited.") }
+    }
+
+    fun updateComposition(next: StoryComposition) {
+        composition = next
+        pendingEditorWrites += 1
+        scope.launch {
+            try {
+                editorWrites.withLock {
+                    activeDraft?.let {
+                        val needed = next.layers.mapNotNull { layer -> layer.asset }.toSet()
+                        if (!stickerAssets.keys.containsAll(needed)) stickerAssets = editorStore.loadAssets(it, next)
+                        activeDraft = editorStore.save(it, next)
+                    }
+                }
+            } catch (error: Exception) { reportEditorError(error) }
+            finally { pendingEditorWrites -= 1 }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        try {
+            var restored = editorStore.restore()
+            if (restored == null &&
+                context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+                currentActivity?.intent?.getBooleanExtra("presently.editor.sample", false) == true
+            ) {
+                val sample = android.graphics.Bitmap.createBitmap(1200, 1600, android.graphics.Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(sample)
+                canvas.drawPaint(android.graphics.Paint().apply {
+                    shader = android.graphics.LinearGradient(0f, 0f, 1200f, 1600f, 0xFF245D77.toInt(), 0xFFE7B784.toInt(), android.graphics.Shader.TileMode.CLAMP)
+                })
+                val data = java.io.ByteArrayOutputStream().use { output -> sample.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, output); output.toByteArray() }
+                sample.recycle()
+                restored = editorStore.create(data)
+                currentActivity.intent.removeExtra("presently.editor.sample")
+            }
+            if (restored != null) {
+                activeDraft = restored
+                composition = StoryComposition.decode(restored.compositionJson)
+                capturedJpeg = editorStore.source(restored)
+                stickerAssets = editorStore.loadAssets(restored, composition)
+            }
+        } catch (error: Exception) { reportEditorError(error) }
+        finally { editorReady = true }
+    }
+    DisposableEffect(stickerAssets) {
+        val old = stickerAssets
+        onDispose { old.values.forEach { it.recycle() } }
+    }
+
 
     fun setZoomRatio(requestedZoomRatio: Float) {
         val clampedZoomRatio = requestedZoomRatio.coerceIn(minimumZoomRatio, maximumZoomRatio)
@@ -238,6 +304,18 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                     )
                 }
             },
+            onOpenFeedbackBoard = {
+                runCatching {
+                    CustomTabsIntent.Builder()
+                        .setShowTitle(true)
+                        .build()
+                        .launchUrl(context, Uri.parse(PresentlyLinks.FeedbackBoard))
+                }.onFailure {
+                    scope.launch {
+                        snackbar.showSnackbar("Could not open the feedback board.")
+                    }
+                }
+            },
             onDismiss = { showSettings = false },
         )
     }
@@ -266,12 +344,39 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                     },
             )
         } else {
-            val bitmap = remember(jpeg) { BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size) }
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Captured story preview",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
+            val draft = activeDraft
+            if (draft != null) StoryEditor(
+                jpeg = jpeg,
+                draftId = draft.id,
+                composition = composition,
+                assets = stickerAssets,
+                frozen = draft.renderedImagePath != null || draft.recordKey != null,
+                editable = !isPublishing && !editorBusy && draft.renderedImagePath == null && draft.recordKey == null,
+                onChange = ::updateComposition,
+                onTransforming = { editorTransforming = it },
+                onImport = { uri, finished ->
+                    if (composition.layers.size >= StoryComposition.MaximumLayers || composition.layers.count { it.asset != null } >= 10) {
+                        finished()
+                        scope.launch { snackbar.showSnackbar("A story can have up to 30 layers, including 10 image stickers.") }
+                    } else {
+                        editorBusy = true
+                        scope.launch {
+                            try {
+                                editorWrites.withLock {
+                                    val currentDraft = checkNotNull(activeDraft)
+                                    val asset = editorStore.importSticker(currentDraft, uri)
+                                    val next = composition.copy(layers = composition.layers + StoryLayer(asset = asset))
+                                    val loaded = editorStore.loadAssets(currentDraft, next)
+                                    activeDraft = editorStore.save(currentDraft, next)
+                                    stickerAssets = loaded
+                                    composition = next
+                                }
+                            } catch (error: Exception) { reportEditorError(error) }
+                            finally { editorBusy = false; finished() }
+                        }
+                    }
+                },
+                onError = { message -> scope.launch { snackbar.showSnackbar(message) } },
             )
         }
 
@@ -294,13 +399,26 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                     maximumZoomRatio = maximumZoomRatio,
                     canSwitchCamera = canSwitchCamera,
                     onZoomSelected = ::setZoomRatio,
-                    onCapture = {
+                    onCapture = capture@{
+                        if (!editorReady || editorBusy) return@capture
+                        editorBusy = true
                         saveThisPhoto = false
                         capturePhoto(
                             imageCapture = imageCapture,
                             context = context,
-                            onCaptured = { capturedJpeg = it },
+                            onCaptured = { bytes ->
+                                scope.launch {
+                                    try {
+                                        activeDraft = editorStore.create(bytes)
+                                        composition = StoryComposition()
+                                        stickerAssets = emptyMap()
+                                        capturedJpeg = bytes
+                                    } catch (error: Exception) { reportEditorError(error) }
+                                    finally { editorBusy = false }
+                                }
+                            },
                             onError = { message ->
+                                editorBusy = false
                                 scope.launch { snackbar.showSnackbar(message) }
                             },
                         )
@@ -318,39 +436,45 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                 ReviewControls(
                     preference = settings.preference,
                     isPublishing = isPublishing,
+                    interactionBlocked = editorBusy || editorTransforming || pendingEditorWrites > 0,
                     saveThisPhoto = saveThisPhoto,
                     onSaveThisPhotoChanged = { saveThisPhoto = it },
                     onRetake = {
                         saveThisPhoto = false
-                        activeDraft = null
-                        capturedJpeg = null
-                    },
-                    onPost = {
+                        editorBusy = true
                         scope.launch {
-                            if (jpeg.size > FlashesStoryContract.MaximumImageBytes) {
-                                snackbar.showSnackbar("This image exceeds Flashes' 10 MiB limit.")
-                                return@launch
-                            }
+                            try {
+                                editorWrites.withLock { activeDraft?.let { editorStore.discard(it) } }
+                                activeDraft = null
+                                capturedJpeg = null
+                                composition = StoryComposition()
+                                stickerAssets = emptyMap()
+                            } catch (error: Exception) { reportEditorError(error) }
+                            finally { editorBusy = false }
+                        }
+                    },
+                    onPost = post@{
+                        if (isPublishing || editorBusy || editorTransforming || pendingEditorWrites > 0) return@post
+                        val shouldSavePhoto = settings.preference.shouldSave(saveThisPhoto)
+                        scope.launch {
                             if (authState.session?.canPublishStory != true) {
                                 showAccount = true
                                 return@launch
                             }
 
-                            val draft = activeDraft?.copy(
-                                state = LocalStoryDraft.State.Publishing.storageValue,
-                                lastError = null,
-                            ) ?: LocalStoryDraft(
-                                imageData = jpeg,
-                                state = LocalStoryDraft.State.Publishing.storageValue,
-                                recordKey = ATProtoTid.create(),
-                            ).also { activeDraft = it }
-                            dao.upsertDraft(draft)
-                            activeDraft = draft
-                            val recordKey = checkNotNull(draft.recordKey)
                             isPublishing = true
+                            var attemptDraft: LocalStoryDraft? = null
                             try {
+                                val (frozen, export) = editorWrites.withLock {
+                                    editorStore.freeze(checkNotNull(activeDraft), composition)
+                                }
+                                val draft = frozen.copy(state = LocalStoryDraft.State.Publishing.storageValue, lastError = null)
+                                dao.upsertDraft(draft)
+                                activeDraft = draft
+                                attemptDraft = draft
+                                val recordKey = checkNotNull(draft.recordKey)
                                 val published = auth.publishStory(
-                                    jpegData = jpeg,
+                                    jpegData = export,
                                     createdAt = Instant.ofEpochMilli(
                                         draft.createdAtEpochMillis,
                                     ),
@@ -365,11 +489,10 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                                     ),
                                 )
 
-                                val shouldSave =
-                                    settings.preference.shouldSave(saveThisPhoto)
+                                val shouldSave = shouldSavePhoto
                                 val message = if (shouldSave) {
                                     runCatching {
-                                        PhotoLibrarySaver.save(context, jpeg)
+                                        PhotoLibrarySaver.save(context, export)
                                     }.fold(
                                         onSuccess = {
                                             "Your Story Is Live and Saved to Photos."
@@ -384,16 +507,20 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                                 saveThisPhoto = false
                                 activeDraft = null
                                 capturedJpeg = null
+                                composition = StoryComposition()
+                                stickerAssets = emptyMap()
                                 snackbar.showSnackbar(message)
                             } catch (error: Throwable) {
                                 val detail = error.localizedMessage
                                     ?: "The story could not be posted."
-                                val failed = draft.copy(
-                                    state = LocalStoryDraft.State.Failed.storageValue,
-                                    lastError = detail,
-                                )
-                                dao.upsertDraft(failed)
-                                activeDraft = failed
+                                attemptDraft?.let { draft ->
+                                    val failed = draft.copy(
+                                        state = LocalStoryDraft.State.Failed.storageValue,
+                                        lastError = detail,
+                                    )
+                                    dao.upsertDraft(failed)
+                                    activeDraft = failed
+                                }
                                 snackbar.showSnackbar(
                                     "Your Story Couldn’t Be Posted. Tap the Checkmark to Try Again.",
                                 )

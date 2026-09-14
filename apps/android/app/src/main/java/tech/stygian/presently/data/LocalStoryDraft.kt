@@ -14,6 +14,9 @@ data class LocalStoryDraft(
     val publishedUri: String? = null,
     val publishedCid: String? = null,
     val recordKey: String? = null,
+    val originalImagePath: String? = null,
+    val compositionJson: String? = null,
+    val renderedImagePath: String? = null,
 ) {
     enum class State(val storageValue: String) {
         Pending("pending"),

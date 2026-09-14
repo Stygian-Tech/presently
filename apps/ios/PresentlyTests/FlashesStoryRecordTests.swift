@@ -3,6 +3,18 @@ import Foundation
 import Testing
 @testable import Presently
 
+struct PresentlyLinksTests {
+    @Test
+    func feedbackBoardUsesTheCanonicalPresentlyBoard() {
+        #expect(PresentlyLinks.feedbackBoard.scheme == "https")
+        #expect(PresentlyLinks.feedbackBoard.host == "userinput.app")
+        #expect(
+            PresentlyLinks.feedbackBoard.path
+                == "/s/did:plc:qy5pluw2bsuq2x6albsgkvx3/3msgekt2gyt2p"
+        )
+    }
+}
+
 struct FlashesStoryRecordTests {
     @Test
     func createsCurrentFlashesStoryShape() throws {

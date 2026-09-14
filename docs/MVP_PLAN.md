@@ -13,7 +13,8 @@ validate browsing, engagement, group moments, or event discovery.
 1. Launch Presently directly into a full-screen camera.
 2. If signed out, connect an AT Protocol account through the system browser.
 3. Capture one still photo.
-4. Review, retake, and choose whether to save a copy to the device library.
+4. Review, optionally add text or static stickers, retake, and choose whether
+   to save a copy of the finished photo to the device library.
 5. Tap **Post story**.
 6. Presently uploads one JPEG blob to the signed-in account's PDS.
 7. Presently creates a `blue.flashes.story.post` record with a 24-hour expiry.
@@ -35,13 +36,15 @@ deletion from every copy of the network.
   OAuth client metadata document.
 - JPEG output, under the schema's 10 MiB maximum.
 - Local pending/failed draft persistence and safe retry.
+- Native text/emoji/static sticker editing, layer transforms, center guides,
+  delete/undo, and editable draft restoration. See [STORY_EDITOR.md](STORY_EDITOR.md).
 - Optional save to Photos/MediaStore.
 - Exact Flashes `blue.flashes.story.post` compatibility.
 
 ### Excluded
 
 - Feed, story viewer, replies, reactions, view counts, notifications.
-- Video, multiple images, text overlays, facets, filters, editing.
+- Video, multiple story images, animated stickers, subject cutouts, facets and filters.
 - Events, RSVP discovery, GPS, group moments, or a Presently lexicon.
 - A backend that stores user access or refresh tokens.
 - Claiming network deletion when the record's display window expires.
