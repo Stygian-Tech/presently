@@ -248,6 +248,7 @@ private fun ShutterButton(
 internal fun ReviewControls(
     preference: SaveToPhotosPreference,
     isPublishing: Boolean,
+    interactionBlocked: Boolean,
     saveThisPhoto: Boolean,
     onSaveThisPhotoChanged: (Boolean) -> Unit,
     onRetake: () -> Unit,
@@ -294,7 +295,7 @@ internal fun ReviewControls(
             ) {
                 FilledIconButton(
                     onClick = onRetake,
-                    enabled = !isPublishing,
+                    enabled = !isPublishing && !interactionBlocked,
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.inverseSurface,
                         contentColor = MaterialTheme.colorScheme.inverseOnSurface,
@@ -310,7 +311,7 @@ internal fun ReviewControls(
                 }
                 FilledIconButton(
                     onClick = onPost,
-                    enabled = !isPublishing,
+                    enabled = !isPublishing && !interactionBlocked,
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,

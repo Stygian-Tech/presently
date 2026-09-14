@@ -15,6 +15,12 @@ interface PresentlyDao {
     @Upsert
     suspend fun upsertDraft(draft: LocalStoryDraft)
 
+    @Query("SELECT * FROM local_story_drafts WHERE state != 'published' ORDER BY createdAtEpochMillis DESC LIMIT 1")
+    suspend fun latestUnfinishedDraft(): LocalStoryDraft?
+
+    @Query("DELETE FROM local_story_drafts WHERE id = :id")
+    suspend fun deleteDraft(id: String)
+
     @Upsert
     suspend fun upsertSettings(settings: AppSettings)
 

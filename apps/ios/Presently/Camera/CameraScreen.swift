@@ -14,6 +14,8 @@ struct CameraScreen: View {
     @State private var zoomAtGestureStart: Double?
     @State private var isPublishing = false
     @State private var activeDraft: LocalStoryDraft?
+    @State private var editor: StoryEditorSession?
+    @Environment(\.scenePhase) private var scenePhase
 
     private var settings: AppSettings? {
         storedSettings.first
@@ -23,15 +25,15 @@ struct CameraScreen: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if let imageData = camera.capturedPhotoData,
-               let image = UIImage(data: imageData) {
-                review(image: image, imageData: imageData)
+            if let editor {
+                review(editor: editor)
             } else {
                 liveCamera
             }
         }
         .task {
             ensureSettingsExist()
+            restoreDraft()
             let defaultCamera = settings?.defaultCamera ?? .back
             if #available(iOS 18.0, *) {
                 try? await PresentlyCaptureIntent.updateAppContext(
@@ -43,6 +45,16 @@ struct CameraScreen: View {
             await camera.start(
                 preferredFacing: defaultCamera.cameraFacing
             )
+        }
+        .onChange(of: camera.capturedPhotoData) { _, data in
+            guard let data else { return }
+            beginDraft(data: data)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active, let editor {
+                editor.endTransform()
+                persistComposition(editor.composition)
+            }
         }
         .onChange(of: settings?.defaultCamera) { _, preference in
             guard let preference else { return }
@@ -256,64 +268,105 @@ struct CameraScreen: View {
         }
     }
 
-    private func review(image: UIImage, imageData: Data) -> some View {
-        ZStack {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            VStack {
-                Spacer()
-
-                VStack(spacing: 18) {
-                    saveToPhotosReviewOption
-
-                    HStack(spacing: 56) {
-                        Button(role: .cancel) {
-                            saveThisPhoto = false
-                            activeDraft = nil
-                            camera.retake()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.title2.bold())
-                                .foregroundStyle(.white)
-                                .frame(width: 64, height: 64)
-                                .background(.black.opacity(0.72), in: Circle())
-                        }
-                        .disabled(isPublishing)
-                        .accessibilityLabel("Don’t Post Photo")
-                        .accessibilityHint("Returns to the camera")
-
-                        Button {
-                            Task {
-                                await publishStory(imageData: imageData)
-                            }
-                        } label: {
-                            if isPublishing {
-                                ProgressView()
-                                    .tint(.white)
-                                    .frame(width: 64, height: 64)
-                                    .background(.green, in: Circle())
-                            } else {
-                                Image(systemName: "checkmark")
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.white)
-                                    .frame(width: 64, height: 64)
-                                    .background(.green, in: Circle())
-                            }
-                        }
-                        .disabled(isPublishing)
-                        .accessibilityLabel(
-                            isPublishing ? "Posting Photo" : "Post Photo"
-                        )
-                    }
-                }
-                .padding()
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
-                .padding()
+    private func review(editor: StoryEditorSession) -> some View {
+        VStack(spacing: 0) {
+            StoryEditorView(session: editor, isEditable: !isPublishing && activeDraft?.recordKey == nil) {
+                feedbackMessage = $0
             }
+            VStack(spacing: 14) {
+                saveToPhotosReviewOption
+                HStack {
+                    Button("Discard", systemImage: "xmark", role: .cancel) { discardDraft() }
+                        .disabled(isPublishing || !editor.canFinishEditing)
+                    Spacer()
+                    if isPublishing { ProgressView().tint(.white) }
+                    Button(isPublishing ? "Posting…" : "Post Photo", systemImage: "checkmark") {
+                        Task { await prepareAndPublish() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+                    .disabled(isPublishing || !editor.canFinishEditing)
+                }
+            }
+            .padding()
+            .background(.regularMaterial)
         }
+        .preferredColorScheme(.dark)
+    }
+
+    private func attachEditor(to draft: LocalStoryDraft) throws {
+        draft.preserveOriginalForEditing()
+        let session = try StoryEditorSession(photoData: draft.originalImageData ?? draft.imageData, recipe: draft.editorData)
+        activeDraft = draft
+        session.onChange = { composition in persistComposition(composition) }
+        editor = session
+    }
+
+    private func beginDraft(data: Data) {
+        // A new camera capture owns a new draft; originals are never replaced by the flattened export.
+        do {
+            let draft = LocalStoryDraft(imageData: data)
+            draft.originalImageData = data
+            draft.editorData = try StoryComposition().encoded()
+            try attachEditor(to: draft)
+            modelContext.insert(draft)
+            try modelContext.save()
+        } catch { feedbackMessage = "Could not save your draft: \(error.localizedDescription)" }
+    }
+
+    private func restoreDraft() {
+        guard editor == nil else { return }
+        do {
+            let descriptor = FetchDescriptor<LocalStoryDraft>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+            if let draft = try modelContext.fetch(descriptor).first(where: { $0.state != .published }) {
+                if draft.state == .publishing { draft.state = .failed }
+                try attachEditor(to: draft)
+                try modelContext.save()
+                return
+            }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--editor-demo") {
+                let renderer = UIGraphicsImageRenderer(size: CGSize(width: 900, height: 1200))
+                let image = renderer.image { context in
+                    UIColor.systemTeal.setFill(); context.fill(CGRect(x: 0, y: 0, width: 900, height: 1200))
+                    UIColor.systemIndigo.setFill(); context.fill(CGRect(x: 0, y: 750, width: 900, height: 450))
+                }
+                if let data = image.jpegData(compressionQuality: 0.9) { beginDraft(data: data) }
+            }
+            #endif
+        } catch { feedbackMessage = "Could not restore your pending photo: \(error.localizedDescription)" }
+    }
+
+    private func persistComposition(_ composition: StoryComposition) {
+        guard let draft = activeDraft, draft.recordKey == nil else { return }
+        do {
+            draft.editorData = try composition.encoded()
+            try modelContext.save()
+        } catch { feedbackMessage = "Your latest edits could not be saved: \(error.localizedDescription)" }
+    }
+
+    private func discardDraft() {
+        if let draft = activeDraft { modelContext.delete(draft) }
+        do { try modelContext.save() }
+        catch { feedbackMessage = "Could not discard your draft: \(error.localizedDescription)"; return }
+        activeDraft = nil
+        editor = nil
+        saveThisPhoto = false
+        camera.retake()
+    }
+
+    @MainActor
+    private func prepareAndPublish() async {
+        guard let editor, let draft = activeDraft, editor.canFinishEditing, !isPublishing else { return }
+        guard auth.session?.canPublishStory == true else { presentedSheet = .account; return }
+        do {
+            if draft.recordKey == nil {
+                draft.editorData = try editor.composition.encoded()
+                draft.imageData = try StoryRenderer.jpeg(photo: editor.photo, composition: editor.composition)
+                try modelContext.save()
+            }
+            await publishStory(imageData: draft.imageData)
+        } catch { feedbackMessage = "Could not prepare your photo: \(error.localizedDescription)" }
     }
 
     private func ensureSettingsExist() {
@@ -402,6 +455,7 @@ struct CameraScreen: View {
             draft = activeDraft
             draft.state = .publishing
             draft.lastError = nil
+            if draft.recordKey == nil { draft.recordKey = ATProtoTID.make() }
         } else {
             draft = LocalStoryDraft(
                 imageData: imageData,
@@ -452,6 +506,7 @@ struct CameraScreen: View {
                 feedbackMessage = "Your story is live."
             }
             activeDraft = nil
+            editor = nil
             saveThisPhoto = false
             camera.retake()
         } catch {

@@ -2,8 +2,9 @@
 
 Presently is a camera-first AT Protocol client for sharing a photo as a
 24-hour story that Flashes can display. The MVP intentionally has no feed: it
-opens to the camera, captures one JPEG, optionally saves it to the device photo
-library, and publishes a `blue.flashes.story.post` record.
+opens to the camera, captures one photo, lets you add text and static stickers,
+optionally saves the finished image to the device photo library, and publishes
+a `blue.flashes.story.post` record.
 
 ## Monorepo
 
@@ -17,6 +18,7 @@ services/
 docs/
   MVP_PLAN.md       Delivery plan, boundaries, and acceptance criteria
   STORY_CONTRACT.md Published Flashes record contract used by both clients
+  STORY_EDITOR.md   Native editor, editable drafts, and export behavior
 ```
 
 ## Current Implementation
@@ -24,6 +26,10 @@ docs/
 - Both clients implement the camera/review interaction, friendly account
   typeahead, native OAuth/DPoP session handling, and durable local story drafts.
 - Both clients model the exact current Flashes story record.
+- Native photo review supports styled text, emoji and static image stickers,
+  layer gestures, center guides, deletion and undo. Editable drafts retain the
+  original photo and layer recipe; publishing and optional photo-library saving
+  use the same flattened JPEG. See [the editor design](docs/STORY_EDITOR.md).
 - The Go OAuth service serves native public-client metadata with the minimum
   create-only Flashes actor, story, and JPEG blob permissions.
 - Both apps implement JPEG blob upload and `blue.flashes.story.post` creation.
