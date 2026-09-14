@@ -59,3 +59,23 @@ Check that toolbars remain reachable with the keyboard and larger text sizes.
 Physical camera capture, device-specific image keyboards, photo-library saving,
 and authenticated publishing to a PDS require separate device acceptance.
 Simulator builds and local export tests do not establish that acceptance.
+
+### Implementation validation — 2026-09-14
+
+- iOS: build and all 39 tests passed. Simulator checks covered native text
+  entry, emoji, Photos picker sticker import, drag, delete/undo, and draft
+  restoration after stop/relaunch. A text-input synchronization regression
+  found during these checks was fixed and covered by regression tests.
+- Android: the isolated editor commit passed all 34 unit tests, debug build,
+  and lint. The working checkout also passed its 41 tests, including unrelated
+  existing local changes. Native instrumentation exercised text, emoji, image
+  import, undo, deletion, resize/rotation/nudges, and draft restoration after
+  force-stop/relaunch in separate processes.
+- Web type checking/build and Go service tests/build passed.
+- Physical-device camera and keyboard behavior, photo-library saving, and an
+  authenticated PDS publish remain release acceptance checks.
+
+For local editor QA without camera capture, Debug builds accept `--editor-demo`
+on iOS and the boolean launch extra `presently.editor.sample` on Android. These
+seed a synthetic photo only when no unfinished draft exists. They do not sign
+in or publish a story.
