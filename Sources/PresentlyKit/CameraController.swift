@@ -55,17 +55,17 @@ public final class CameraController: NSObject {
         cameraSession.session
     }
 
-    public var state: State = .idle
-    public var capturedPhotoData: Data?
-    public var isCapturing = false
-    public var facing: Facing = .back
-    public var zoomFactor = 1.0
-    public var minimumZoomFactor = 1.0
-    public var maximumZoomFactor = 1.0
-    public var canSwitchCamera = false
-    public var isSwitchingCamera = false
-    public var selfieFramingMode = SelfieFramingMode.portrait
-    public var supportsSmartSelfieFraming = false
+    public private(set) var state: State = .idle
+    public private(set) var capturedPhotoData: Data?
+    public private(set) var isCapturing = false
+    public private(set) var facing: Facing = .back
+    public private(set) var zoomFactor = 1.0
+    public private(set) var minimumZoomFactor = 1.0
+    public private(set) var maximumZoomFactor = 1.0
+    public private(set) var canSwitchCamera = false
+    public private(set) var isSwitchingCamera = false
+    public private(set) var selfieFramingMode = SelfieFramingMode.portrait
+    public private(set) var supportsSmartSelfieFraming = false
 
     public var quickZoomFactors: [Double] {
         [0.5, 1, 2, 3].filter {
@@ -525,9 +525,11 @@ private final class SmartFramingCoordinator {
         self.monitor = monitor
         setMode(initialMode)
         observation = monitor.observe(\.recommendedFraming, options: [.new]) {
-            [weak self] monitor, _ in
+            [camera] monitor, _ in
             guard let framing = monitor.recommendedFraming else { return }
-            self?.apply(framing)
+            // KVO may call on any thread. Capture only the device; configuration
+            // is protected by its lock, without sharing coordinator state.
+            Self.apply(camera: camera, aspectRatio: framing.aspectRatio, zoomFactor: CGFloat(framing.zoomFactor))
         }
         try monitor.startMonitoring()
     }
@@ -537,7 +539,7 @@ private final class SmartFramingCoordinator {
         monitor.enabledFramings = monitor.supportedFramings.filter {
             $0.aspectRatio == aspectRatio
         }
-        apply(aspectRatio: aspectRatio, zoomFactor: 1)
+        Self.apply(camera: camera, aspectRatio: aspectRatio, zoomFactor: 1)
     }
 
     func stop() {
@@ -546,14 +548,8 @@ private final class SmartFramingCoordinator {
         monitor.stopMonitoring()
     }
 
-    private func apply(_ framing: AVCaptureFraming) {
-        apply(
-            aspectRatio: framing.aspectRatio,
-            zoomFactor: CGFloat(framing.zoomFactor)
-        )
-    }
-
-    private func apply(
+    private static func apply(
+        camera: AVCaptureDevice,
         aspectRatio: AVCaptureDevice.AspectRatio,
         zoomFactor: CGFloat
     ) {

@@ -16,7 +16,8 @@ struct PublicAPITests {
         var persisted: Data?
         session.onChange = { persisted = try? $0.encoded() }
         try session.add(StoryLayer(text: "From any host", style: .rounded))
-        let restored = try StoryEditorSession(photoData: original, recipe: #require(persisted))
+        let persistedRecipe = try #require(persisted)
+        let restored = try StoryEditorSession(photoData: original, recipe: persistedRecipe)
         #expect(restored.composition == session.composition)
         let jpeg = try StoryRenderer.jpeg(photo: restored.photo, composition: restored.composition, maximumBytes: 1_000_000)
         #expect(jpeg.count <= 1_000_000)

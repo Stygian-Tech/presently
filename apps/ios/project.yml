@@ -4,6 +4,9 @@ options:
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "26.0"
+packages:
+  PresentlyKit:
+    path: ../..
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -37,6 +40,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.stygian.presently
     dependencies:
+      - package: PresentlyKit
       - target: PresentlyControls
         embed: true
       - target: PresentlyCaptureExtension
@@ -87,6 +91,7 @@ targets:
       - PresentlyTests
     dependencies:
       - target: Presently
+      - package: PresentlyKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.stygian.presently.tests

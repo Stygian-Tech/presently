@@ -2,7 +2,7 @@ import Foundation
 import ImageIO
 import UIKit
 
-public struct StoryComposition: Codable, Equatable {
+public struct StoryComposition: Codable, Equatable, Sendable {
     public static let currentVersion = 1
     public var version = currentVersion
     public var layers: [StoryLayer] = []
@@ -50,8 +50,8 @@ public struct StoryComposition: Codable, Equatable {
     }
 }
 
-public struct StoryLayer: Codable, Identifiable, Equatable {
-    public enum Style: String, Codable, CaseIterable {
+public struct StoryLayer: Codable, Identifiable, Equatable, Sendable {
+    public enum Style: String, Codable, CaseIterable, Sendable {
         case bold, classic, mono, serif, rounded, boldRounded
 
         public var title: LocalizedStringResource {
@@ -65,7 +65,7 @@ public struct StoryLayer: Codable, Identifiable, Equatable {
             }
         }
     }
-    public enum Alignment: String, Codable, CaseIterable { case left, center, right }
+    public enum Alignment: String, Codable, CaseIterable, Sendable { case left, center, right }
     public var id = UUID()
     public var text: String = ""
     public var isEmoji: Bool = false
@@ -127,7 +127,7 @@ public enum EditorError: LocalizedError {
 }
 
 @MainActor
-enum StoryRenderer {
+public enum StoryRenderer {
     public static let storyAspectRatio: CGFloat = 9.0 / 16.0
 
     public static func storyCrop(_ uprightPhoto: UIImage, viewportAspectRatio: Double? = nil) throws -> UIImage {
@@ -287,7 +287,7 @@ enum StoryRenderer {
         }
     }
 
-    public static func jpeg(photo: UIImage, composition: StoryComposition, maximumBytes: Int = 10 * 1_024 * 1_024) throws -> Data {
+    public static func jpeg(photo: UIImage, composition: StoryComposition, maximumBytes: Int = FlashesStoryContract.maximumImageBytes) throws -> Data {
         guard maximumBytes > 0 else { throw EditorError.imageTooLarge }
         let rendered = render(photo: photo, composition: composition)
         for quality in [0.9, 0.75, 0.6] {

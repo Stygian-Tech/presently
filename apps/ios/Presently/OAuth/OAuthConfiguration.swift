@@ -1,3 +1,4 @@
+import PresentlyKit
 import Foundation
 
 enum PresentlyOAuthConfiguration {
@@ -9,12 +10,7 @@ enum PresentlyOAuthConfiguration {
     )!
     static let callbackScheme = "photo.presently.oauth"
 
-    static let scopes = [
-        "atproto",
-        "repo:blue.flashes.actor.profile?action=create",
-        "repo:blue.flashes.story.post?action=create",
-        "blob:image/jpeg",
-    ]
+    static let scopes = StoryPublisher.requiredOAuthScopes
 
     static var scope: String {
         scopes.joined(separator: " ")

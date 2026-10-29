@@ -1,3 +1,4 @@
+import PresentlyKit
 import LockedCameraCapture
 import SwiftData
 import SwiftUI
@@ -11,7 +12,7 @@ struct CameraScreen: View {
     @State private var feedbackMessage: String?
     @State private var presentedSheet: CameraSheet?
     @State private var saveThisPhoto = false
-    @State private var zoomAtGestureStart: Double?
+    @State private var capturedViewportAspectRatio: Double?
     @State private var isPublishing = false
     @State private var activeDraft: LocalStoryDraft?
     @State private var editor: StoryEditorSession?
@@ -93,186 +94,21 @@ struct CameraScreen: View {
     }
 
     private var liveCamera: some View {
-        ZStack {
-            CameraPreview(
-                session: camera.session,
-                isCaptureEnabled: camera.state == .ready && !camera.isCapturing,
-                onCapture: camera.capture
-            )
-                .ignoresSafeArea()
-                .gesture(
-                    MagnifyGesture()
-                        .onChanged { value in
-                            guard !camera.supportsSmartSelfieFraming else { return }
-                            let startingZoom = zoomAtGestureStart ?? camera.zoomFactor
-                            zoomAtGestureStart = startingZoom
-                            camera.setZoomFactor(startingZoom * value.magnification)
-                        }
-                        .onEnded { _ in
-                            zoomAtGestureStart = nil
-                        }
+        CameraViewfinder(camera: camera, onCapture: capturePhoto)
+            .overlay(alignment: .top) {
+                CameraHeader(
+                    isConnected: auth.session != nil,
+                    openAccount: { presentedSheet = .account },
+                    openSettings: { presentedSheet = .settings }
                 )
-
-            VStack {
-                HStack {
-                    Text("Presently")
-                        .font(.headline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.black.opacity(0.45), in: Capsule())
-                    Spacer()
-                    Button {
-                        presentedSheet = .account
-                    } label: {
-                        Image(
-                            systemName: auth.session == nil
-                                ? "person.crop.circle"
-                                : "person.crop.circle.fill.badge.checkmark"
-                        )
-                        .font(.body.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .background(.black.opacity(0.45), in: Circle())
-                    }
-                    .accessibilityLabel(
-                        auth.session == nil
-                            ? "Connect account"
-                            : "Connected account"
-                    )
-                    Button {
-                        presentedSheet = .settings
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .background(.black.opacity(0.45), in: Circle())
-                    }
-                    .accessibilityLabel("Settings")
-                }
-                .foregroundStyle(.white)
-                .padding()
-
-                Spacer()
-
-                cameraStateMessage
-
-                cameraControls
             }
-        }
-    }
-
-    private var cameraControls: some View {
-        VStack(spacing: 20) {
-            if camera.facing == .front, camera.supportsSmartSelfieFraming {
-                Picker("Selfie framing", selection: Binding(
-                    get: { camera.selfieFramingMode },
-                    set: { camera.setSelfieFramingMode($0) }
-                )) {
-                    ForEach(SelfieFramingMode.allCases) { mode in
-                        Label(
-                            mode.title,
-                            systemImage: mode == .portrait
-                                ? "rectangle.portrait"
-                                : "rectangle"
-                        )
-                        .tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 260)
-                .accessibilityHint("Changes the Center Stage photo orientation")
-            } else {
-                zoomControls
-            }
-
-            HStack {
-                Color.clear
-                    .frame(width: 54, height: 54)
-
-                Spacer()
-
-                Button {
-                    saveThisPhoto = false
-                    camera.capture()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .stroke(.white, lineWidth: 4)
-                            .frame(width: 78, height: 78)
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 66, height: 66)
-                    }
-                }
-                .disabled(camera.state != .ready || camera.isCapturing)
-                .accessibilityLabel("Take photo")
-
-                Spacer()
-
-                Button {
-                    Task {
-                        await camera.switchCamera()
-                    }
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                        .frame(width: 54, height: 54)
-                        .background(.black.opacity(0.5), in: Circle())
-                }
-                .disabled(!camera.canSwitchCamera || camera.isSwitchingCamera)
-                .accessibilityLabel("Switch camera")
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-    }
-
-    private var zoomControls: some View {
-        HStack(spacing: 8) {
-            ForEach(camera.quickZoomFactors, id: \.self) { zoomFactor in
-                Button {
-                    camera.setZoomFactor(zoomFactor)
-                } label: {
-                    Text(formatZoom(zoomFactor))
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(
-                            abs(camera.zoomFactor - zoomFactor) < 0.05 ? .yellow : .white
-                        )
-                        .frame(width: 42, height: 32)
-                        .background(.black.opacity(0.5), in: Capsule())
-                }
-                .accessibilityLabel("Zoom \(formatZoom(zoomFactor))")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var cameraStateMessage: some View {
-        switch camera.state {
-        case .idle, .ready:
-            EmptyView()
-        case .requestingPermission:
-            ProgressView("Opening camera…")
-                .foregroundStyle(.white)
-                .padding()
-        case .denied:
-            Text("Camera access is required. Enable it in Settings.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.white)
-                .padding()
-        case let .unavailable(message):
-            Text(message)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.white)
-                .padding()
-        }
     }
 
     private func review(editor: StoryEditorSession) -> some View {
         VStack(spacing: 0) {
-            StoryEditorView(session: editor, isEditable: !isPublishing && activeDraft?.recordKey == nil) {
+            StoryEditorView(session: editor, isEditable: !isPublishing && activeDraft?.recordKey == nil, onError: {
                 feedbackMessage = $0
-            }
+            })
             VStack(spacing: 14) {
                 saveToPhotosReviewOption
                 HStack {
@@ -302,12 +138,19 @@ struct CameraScreen: View {
         editor = session
     }
 
+    private func capturePhoto(viewportAspectRatio: Double?) {
+        guard camera.state == .ready, !camera.isCapturing else { return }
+        saveThisPhoto = false
+        capturedViewportAspectRatio = viewportAspectRatio
+        camera.capture()
+    }
+
     private func beginDraft(data: Data) {
         // A new camera capture owns a new draft; originals are never replaced by the flattened export.
         do {
             let draft = LocalStoryDraft(imageData: data)
             draft.originalImageData = data
-            draft.editorData = try StoryComposition().encoded()
+            draft.editorData = try StoryComposition(usesStoryCrop: true, captureViewportAspectRatio: capturedViewportAspectRatio).encoded()
             try attachEditor(to: draft)
             modelContext.insert(draft)
             try modelContext.save()
@@ -362,7 +205,7 @@ struct CameraScreen: View {
         do {
             if draft.recordKey == nil {
                 draft.editorData = try editor.composition.encoded()
-                draft.imageData = try StoryRenderer.jpeg(photo: editor.photo, composition: editor.composition)
+                draft.imageData = try StoryRenderer.jpeg(photo: editor.photo, composition: editor.composition, maximumBytes: FlashesStoryContract.maximumImageBytes)
                 try modelContext.save()
             }
             await publishStory(imageData: draft.imageData)
@@ -518,12 +361,7 @@ struct CameraScreen: View {
         }
     }
 
-    private func formatZoom(_ zoomFactor: Double) -> String {
-        if zoomFactor.rounded() == zoomFactor {
-            return "\(Int(zoomFactor))×"
-        }
-        return String(format: "%.1f×", zoomFactor)
-    }
+
 }
 
 private enum CameraSheet: String, Identifiable {
@@ -658,4 +496,37 @@ private extension DefaultCameraPreference {
     CameraScreen()
         .modelContainer(for: [LocalStoryDraft.self, AppSettings.self], inMemory: true)
         .environment(OAuthSessionManager())
+}
+
+private struct CameraHeader: View {
+    let isConnected: Bool
+    let openAccount: () -> Void
+    let openSettings: () -> Void
+
+    var body: some View {
+        HStack {
+            Text("Presently")
+                .font(.headline)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .modifier(PresentlyControlSurface())
+            Spacer()
+            Button(action: openAccount) {
+                Label(
+                    isConnected ? "Connected account" : "Connect account",
+                    systemImage: isConnected
+                        ? "person.crop.circle.fill.badge.checkmark"
+                        : "person.crop.circle"
+                )
+            }
+            Button("Settings", systemImage: "gearshape", action: openSettings)
+        }
+        .labelStyle(.iconOnly)
+        .modifier(PresentlyGlassButtonStyle())
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+        .foregroundStyle(.white)
+        .padding()
+        .environment(\.colorScheme, .dark)
+    }
 }

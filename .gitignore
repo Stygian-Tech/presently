@@ -22,3 +22,7 @@ dist/
 # Editors
 .idea/
 *.iml
+
+# Swift Package Manager
+.build/
+.swiftpm/

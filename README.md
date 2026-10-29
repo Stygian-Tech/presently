@@ -6,6 +6,14 @@ opens to the camera, captures one photo, lets you add text and static stickers,
 optionally saves the finished image to the device photo library, and publishes
 a `blue.flashes.story.post` record.
 
+## Shared iOS package
+
+The repository root exposes `PresentlyKit`, an iOS 17+ Swift package for the
+camera, viewfinder, editor, Flashes actor provisioning and story publishing.
+Presently consumes the same library intended for Quill and The Social Wire.
+See the [integration guide](docs/PRESENTLY_KIT.md) for the public API,
+authentication adapter, draft ownership and retry contract.
+
 ## Monorepo
 
 ```text

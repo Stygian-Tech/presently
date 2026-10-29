@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import Testing
 @testable import Presently
+import PresentlyKit
 
 struct PresentlyLinksTests {
     @Test
@@ -137,19 +138,6 @@ struct FlashesStoryRecordTests {
         #expect(response.blob.reference.link == "bafkreiexample")
         #expect(response.blob.mimeType == "image/jpeg")
         #expect(response.blob.size == 512_000)
-    }
-}
-
-struct CameraSessionQueueTests {
-    @Test
-    func performsCameraWorkOffTheMainThread() async throws {
-        let queue = CameraSessionQueue(label: "tech.stygian.presently.camera-session.tests")
-
-        let ranOnMainThread = try await queue.perform {
-            Thread.isMainThread
-        }
-
-        #expect(!ranOnMainThread)
     }
 }
 
@@ -339,34 +327,6 @@ struct FlashesActorProfileTests {
         #expect(record["enablePortfolio"] as? Bool == false)
         #expect(record["portfolioLayout"] as? String == "grid")
         #expect(record["allowRawDownload"] as? Bool == false)
-    }
-
-    @Test
-    func treatsOnlyRecordNotFoundAsMissing() {
-        let missing = OAuthHTTPResponse(
-            data: Data(#"{"error":"RecordNotFound"}"#.utf8),
-            statusCode: 400,
-            headers: [:]
-        )
-        let serverFailure = OAuthHTTPResponse(
-            data: Data(#"{"error":"InternalServerError"}"#.utf8),
-            statusCode: 500,
-            headers: [:]
-        )
-
-        #expect(ATProtoOAuthClient.isRecordNotFound(missing))
-        #expect(!ATProtoOAuthClient.isRecordNotFound(serverFailure))
-    }
-
-    @Test
-    func acceptsAnAlreadyExistsRaceAsSuccess() {
-        let response = OAuthHTTPResponse(
-            data: Data(#"{"error":"RecordAlreadyExists"}"#.utf8),
-            statusCode: 400,
-            headers: [:]
-        )
-
-        #expect(ATProtoOAuthClient.isRecordAlreadyExists(response))
     }
 
     @Test

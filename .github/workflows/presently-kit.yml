@@ -1,0 +1,43 @@
+name: PresentlyKit
+
+on:
+  pull_request:
+    paths:
+      - Package.swift
+      - Sources/**
+      - Tests/**
+      - apps/ios/**
+      - .github/workflows/presently-kit.yml
+  push:
+    branches: [main]
+    paths:
+      - Package.swift
+      - Sources/**
+      - Tests/**
+      - apps/ios/**
+      - .github/workflows/presently-kit.yml
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Select installed iPhone simulator
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json, subprocess
+          devices = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "--json"]))["devices"]
+          iphones = [d for runtime, entries in devices.items() if "iOS" in runtime for d in entries if d["name"].startswith("iPhone")]
+          if not iphones:
+              raise SystemExit("No iPhone simulator installed")
+          print("TEST_SIMULATOR_ID=" + iphones[-1]["udid"])
+          PY
+      - name: Test standalone package
+        run: xcodebuild -scheme PresentlyKit -destination "platform=iOS Simulator,id=$TEST_SIMULATOR_ID" CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
+      - name: Generate Presently project
+        working-directory: apps/ios
+        run: xcodegen generate
+      - name: Test reference host
+        run: xcodebuild -project apps/ios/Presently.xcodeproj -scheme Presently -destination "platform=iOS Simulator,id=$TEST_SIMULATOR_ID" CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test

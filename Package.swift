@@ -9,5 +9,5 @@ let package = Package(
         .target(name: "PresentlyKit"),
         .testTarget(name: "PresentlyKitTests", dependencies: ["PresentlyKit"])
     ],
-    swiftLanguageModes: [.v5]
+    swiftLanguageModes: [.v6]
 )
