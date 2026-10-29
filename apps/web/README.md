@@ -1,7 +1,7 @@
 # Presently Marketing Site
 
-The static Astro site for Presently. Vercel builds it as the `web` service in
-the repository's multi-service deployment.
+The static Astro site for Presently. It is hosted by Wisp at
+`https://presently.photo`.
 
 ## Develop
 
@@ -22,9 +22,23 @@ the deployed origin.
 
 ## Deployment
 
-The `presently` Vercel project deploys pushes to `main`. Its root `vercel.json`
-routes `presently.photo` and the project's Vercel aliases to this service while
-`oauth.presently.photo` routes to the separate Go container service.
+The `Deploy Marketing Site to Wisp` workflow builds and deploys changes to
+`apps/web` after they reach `main`. Configure its `production` environment with:
 
-`PUBLIC_SITE_URL` defaults to `https://presently.photo` for canonical and social
-URLs.
+- Variable `WISP_HANDLE`: the AT Protocol handle that owns the Wisp site.
+- Variable `WISP_SITE_NAME`: the Wisp site rkey. It defaults to `presently`.
+- Variable `PRESENTLY_SITE_URL`: the canonical public origin. It defaults to
+  `https://presently.photo`.
+- Secret `WISP_APP_PASSWORD`: an app password for the deploying AT Protocol
+  account.
+
+For a manual deployment:
+
+```sh
+npm run check
+npm run build
+wispctl deploy samclemente.me --path dist --site presently
+```
+
+The authoritative DNS zone is managed in Marque. The apex is mapped to Wisp;
+`oauth.presently.photo` is mapped to the Railway OAuth service.

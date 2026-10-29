@@ -1,3 +1,4 @@
+import PresentlyKit
 import CryptoKit
 import Foundation
 import Security
@@ -210,84 +211,11 @@ actor ATProtoOAuthClient {
         try store.deletePendingAuthorization()
     }
 
-    func publishStory(
-        jpegData: Data,
-        createdAt: Date,
-        recordKey: String
-    ) async throws -> PublishedStory {
-        guard jpegData.count <= FlashesStoryContract.maximumImageBytes else {
-            throw StoryContractError.imageTooLarge(jpegData.count)
-        }
-
-        var session = try await validSession()
-        let uploadURL = try repoEndpoint(
-            session.pdsURL,
-            method: "com.atproto.repo.uploadBlob"
-        )
-        let uploadResult = try await dpopResourceRequest(
-            url: uploadURL,
-            body: jpegData,
-            contentType: FlashesStoryContract.jpegMIMEType,
-            session: session
-        )
-        session = uploadResult.session
-        try store.saveSession(session)
-        guard uploadResult.response.statusCode == 200 else {
-            throw StoryContractError.uploadFailed(
-                uploadResult.response.statusCode
-            )
-        }
-        guard let uploaded = try? JSONDecoder().decode(
-            UploadBlobResponse.self,
-            from: uploadResult.response.data
-        ), uploaded.blob.mimeType == FlashesStoryContract.jpegMIMEType,
-           uploaded.blob.size == jpegData.count else {
-            throw StoryContractError.invalidBlobResponse
-        }
-
-        let record = try FlashesStoryRecordFactory.make(
-            blob: uploaded.blob,
-            createdAt: createdAt
-        )
-        let createURL = try repoEndpoint(
-            session.pdsURL,
-            method: "com.atproto.repo.createRecord"
-        )
-        let createBody = try JSONEncoder().encode(
-            CreateRecordRequest(
-                repo: session.accountDID,
-                collection: FlashesStoryContract.collection,
-                recordKey: recordKey,
-                record: record
-            )
-        )
-        let createResult = try await dpopResourceJSONRequest(
-            url: createURL,
-            body: createBody,
-            session: session
-        )
-        try store.saveSession(createResult.session)
-
-        if Self.isRecordAlreadyExists(createResult.response) {
-            return PublishedStory(
-                uri: "at://\(session.accountDID)/\(FlashesStoryContract.collection)/\(recordKey)",
-                cid: nil
-            )
-        }
-        guard createResult.response.statusCode == 200 else {
-            throw StoryContractError.createRecordFailed(
-                createResult.response.statusCode
-            )
-        }
-        guard let response = try? JSONDecoder().decode(
-            CreateRecordResponse.self,
-            from: createResult.response.data
-        ), response.uri ==
-            "at://\(session.accountDID)/\(FlashesStoryContract.collection)/\(recordKey)",
-           !response.cid.isEmpty else {
-            throw StoryContractError.invalidCreateRecordResponse
-        }
-        return PublishedStory(uri: response.uri, cid: response.cid)
+    func publishStory(jpegData: Data, createdAt: Date, recordKey: String) async throws -> PublishedStory {
+        let session = try await validSession()
+        let transport = PresentlyStoryTransport(client: self, session: session)
+        return try await StoryPublisher(repo: session.accountDID, transport: transport)
+            .publish(jpegData: jpegData, createdAt: createdAt, recordKey: recordKey)
     }
 
     private func refresh(_ session: OAuthSession) async throws -> OAuthSession {
@@ -340,92 +268,30 @@ actor ATProtoOAuthClient {
         return refreshed
     }
 
-    private func ensureFlashesActorProfile(
-        for session: OAuthSession
-    ) async throws -> OAuthSession {
-        guard session.flashesActorProfileReady != true else {
-            return session
-        }
-
-        let lookupURL = try repoEndpoint(
-            session.pdsURL,
-            method: "com.atproto.repo.getRecord",
-            queryItems: [
-                URLQueryItem(name: "repo", value: session.accountDID),
-                URLQueryItem(
-                    name: "collection",
-                    value: FlashesActorProfileContract.collection
-                ),
-                URLQueryItem(
-                    name: "rkey",
-                    value: FlashesActorProfileContract.recordKey
-                ),
-            ]
-        )
-        let lookupResponse = try await http.get(
-            lookupURL,
-            headers: ["Accept": "application/json"]
-        )
-
-        if lookupResponse.statusCode == 200 {
-            return try markFlashesActorProfileReady(session)
-        }
-        guard Self.isRecordNotFound(lookupResponse) else {
-            throw OAuthValidationError.unexpectedResponse(
-                lookupResponse.statusCode
-            )
-        }
-
-        let createURL = try repoEndpoint(
-            session.pdsURL,
-            method: "com.atproto.repo.createRecord"
-        )
-        let body = try JSONEncoder().encode(
-            CreateRecordRequest(
-                repo: session.accountDID,
-                collection: FlashesActorProfileContract.collection,
-                recordKey: FlashesActorProfileContract.recordKey,
-                record: FlashesActorProfileFactory.make(createdAt: Date())
-            )
-        )
-        let result = try await dpopResourceJSONRequest(
-            url: createURL,
-            body: body,
-            session: session
-        )
-        guard result.response.statusCode == 200
-                || Self.isRecordAlreadyExists(result.response) else {
-            throw OAuthValidationError.unexpectedResponse(
-                result.response.statusCode
-            )
-        }
-
-        var readySession = result.session
+    private func ensureFlashesActorProfile(for session: OAuthSession) async throws -> OAuthSession {
+        guard session.flashesActorProfileReady != true else { return session }
+        let transport = PresentlyStoryTransport(client: self, session: session)
+        try await StoryPublisher(repo: session.accountDID, transport: transport).ensureActorProfile()
+        var readySession = await transport.currentSession()
         readySession.flashesActorProfileReady = true
         try store.saveSession(readySession)
         return readySession
     }
 
-    private func markFlashesActorProfileReady(
-        _ session: OAuthSession
-    ) throws -> OAuthSession {
-        var readySession = session
-        readySession.flashesActorProfileReady = true
-        try store.saveSession(readySession)
-        return readySession
-    }
-
-    private func dpopResourceJSONRequest(
-        url: URL,
-        body: Data,
-        session: OAuthSession
-    ) async throws -> (response: OAuthHTTPResponse, session: OAuthSession) {
-        try await dpopResourceRequest(
-            url: url,
-            body: body,
-            contentType: "application/json",
-            session: session
+    // This is the authentication adapter: publishing policy lives in PresentlyKit.
+    fileprivate func sendStoryRequest(_ request: StoryPublishingRequest, session: OAuthSession) async throws
+        -> (response: StoryPublishingResponse, session: OAuthSession) {
+        let url = try repoEndpoint(session.pdsURL, method: request.procedure, queryItems: request.queryItems)
+        if request.method == "GET" {
+            let response = try await http.get(url, headers: ["Accept": "application/json"])
+            return (StoryPublishingResponse(statusCode: response.statusCode, data: response.data), session)
+        }
+        let result = try await dpopResourceRequest(
+            url: url, body: request.body ?? Data(),
+            contentType: request.contentType ?? "application/json", session: session
         )
+        try store.saveSession(result.session)
+        return (StoryPublishingResponse(statusCode: result.response.statusCode, data: result.response.data), result.session)
     }
 
     private func dpopResourceRequest(
@@ -485,25 +351,6 @@ actor ATProtoOAuthClient {
             throw OAuthValidationError.invalidProtectedResourceMetadata
         }
         return url
-    }
-
-    static func isRecordNotFound(_ response: OAuthHTTPResponse) -> Bool {
-        response.statusCode == 400
-            && responseError(response) == "RecordNotFound"
-    }
-
-    static func isRecordAlreadyExists(_ response: OAuthHTTPResponse) -> Bool {
-        response.statusCode == 400
-            && responseError(response) == "RecordAlreadyExists"
-    }
-
-    private static func responseError(
-        _ response: OAuthHTTPResponse
-    ) -> String? {
-        let object = try? JSONSerialization.jsonObject(
-            with: response.data
-        ) as? [String: Any]
-        return object?["error"] as? String
     }
 
     private func dpopFormRequest(
@@ -587,5 +434,24 @@ actor ATProtoOAuthClient {
         var bytes = [UInt8](repeating: 0, count: byteCount)
         _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
         return Data(bytes).base64URLEncodedString()
+    }
+}
+
+/// One pinned account and evolving resource nonce for each publishing operation.
+private actor PresentlyStoryTransport: StoryPublishingTransport {
+    private let client: ATProtoOAuthClient
+    private var session: OAuthSession
+
+    init(client: ATProtoOAuthClient, session: OAuthSession) {
+        self.client = client
+        self.session = session
+    }
+
+    func currentSession() -> OAuthSession { session }
+
+    func send(_ request: StoryPublishingRequest) async throws -> StoryPublishingResponse {
+        let result = try await client.sendStoryRequest(request, session: session)
+        session = result.session
+        return result.response
     }
 }

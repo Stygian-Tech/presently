@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [LocalStoryDraft::class, AppSettings::class],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class PresentlyDatabase : RoomDatabase() {
@@ -26,10 +26,18 @@ abstract class PresentlyDatabase : RoomDatabase() {
                     PresentlyDatabase::class.java,
                     "presently.db",
                 )
-                    .addMigrations(Migration1To2, Migration2To3, Migration3To4)
+                    .addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5)
                     .build()
                     .also { instance = it }
             }
+
+        internal val Migration4To5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE local_story_drafts ADD COLUMN originalImagePath TEXT")
+                database.execSQL("ALTER TABLE local_story_drafts ADD COLUMN compositionJson TEXT")
+                database.execSQL("ALTER TABLE local_story_drafts ADD COLUMN renderedImagePath TEXT")
+            }
+        }
 
         private val Migration1To2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {

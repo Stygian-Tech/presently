@@ -30,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -105,7 +106,7 @@ internal fun CameraTopBar(
                 IconButton(onClick = onSettings) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Camera settings",
+                        contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
@@ -247,6 +248,7 @@ private fun ShutterButton(
 internal fun ReviewControls(
     preference: SaveToPhotosPreference,
     isPublishing: Boolean,
+    interactionBlocked: Boolean,
     saveThisPhoto: Boolean,
     onSaveThisPhotoChanged: (Boolean) -> Unit,
     onRetake: () -> Unit,
@@ -293,7 +295,7 @@ internal fun ReviewControls(
             ) {
                 FilledIconButton(
                     onClick = onRetake,
-                    enabled = !isPublishing,
+                    enabled = !isPublishing && !interactionBlocked,
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.inverseSurface,
                         contentColor = MaterialTheme.colorScheme.inverseOnSurface,
@@ -309,7 +311,7 @@ internal fun ReviewControls(
                 }
                 FilledIconButton(
                     onClick = onPost,
-                    enabled = !isPublishing,
+                    enabled = !isPublishing && !interactionBlocked,
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -349,6 +351,10 @@ internal fun CameraSettingsSheet(
     selectedDefaultCamera: DefaultCamera,
     onPreferenceSelected: (SaveToPhotosPreference) -> Unit,
     onDefaultCameraSelected: (DefaultCamera) -> Unit,
+    onOpenFeedbackBoard: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit,
+    onOpenTerms: () -> Unit,
+    onOpenSupport: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -359,7 +365,7 @@ internal fun CameraSettingsSheet(
                 .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Camera Settings", style = MaterialTheme.typography.headlineSmall)
+            Text("Settings", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "Save Captured Photos",
                 style = MaterialTheme.typography.titleMedium,
@@ -415,6 +421,52 @@ internal fun CameraSettingsSheet(
                         )
                     }
                 }
+            }
+
+            Text(
+                "Feedback",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                "Report a bug, request a feature, ask a question, or leave a comment.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenFeedbackBoard,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Open Feedback Board")
+            }
+
+            Text(
+                "About & Support",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                "Learn how Presently handles your data, review the terms, or get help.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenPrivacyPolicy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Privacy Policy")
+            }
+            OutlinedButton(
+                onClick = onOpenTerms,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Terms")
+            }
+            OutlinedButton(
+                onClick = onOpenSupport,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Support")
             }
         }
     }

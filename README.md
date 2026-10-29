@@ -2,8 +2,17 @@
 
 Presently is a camera-first AT Protocol client for sharing a photo as a
 24-hour story that Flashes can display. The MVP intentionally has no feed: it
-opens to the camera, captures one JPEG, optionally saves it to the device photo
-library, and publishes a `blue.flashes.story.post` record.
+opens to the camera, captures one photo, lets you add text and static stickers,
+optionally saves the finished image to the device photo library, and publishes
+a `blue.flashes.story.post` record.
+
+## Shared iOS package
+
+The repository root exposes `PresentlyKit`, an iOS 17+ Swift package for the
+camera, viewfinder, editor, Flashes actor provisioning and story publishing.
+Presently consumes the same library intended for Quill and The Social Wire.
+See the [integration guide](docs/PRESENTLY_KIT.md) for the public API,
+authentication adapter, draft ownership and retry contract.
 
 ## Monorepo
 
@@ -13,10 +22,11 @@ apps/
   ios/              SwiftUI, AVFoundation, and SwiftData
   web/              Astro marketing, privacy, terms, and support site
 services/
-  oauth-worker/     Go ATProto OAuth metadata service for Vercel containers
+  oauth-worker/     Go ATProto OAuth metadata service deployed on Railway
 docs/
   MVP_PLAN.md       Delivery plan, boundaries, and acceptance criteria
   STORY_CONTRACT.md Published Flashes record contract used by both clients
+  STORY_EDITOR.md   Native editor, editable drafts, and export behavior
 ```
 
 ## Current Implementation
@@ -24,6 +34,10 @@ docs/
 - Both clients implement the camera/review interaction, friendly account
   typeahead, native OAuth/DPoP session handling, and durable local story drafts.
 - Both clients model the exact current Flashes story record.
+- Native photo review supports styled text, emoji and static image stickers,
+  layer gestures, center guides, deletion and undo. Editable drafts retain the
+  original photo and layer recipe; publishing and optional photo-library saving
+  use the same flattened JPEG. See [the editor design](docs/STORY_EDITOR.md).
 - The Go OAuth service serves native public-client metadata with the minimum
   create-only Flashes actor, story, and JPEG blob permissions.
 - Both apps implement JPEG blob upload and `blue.flashes.story.post` creation.
@@ -69,16 +83,24 @@ cd apps/android
 cd services/oauth-worker
 go test ./...
 go build ./...
-docker build -f Dockerfile.vercel .
+docker build .
 ```
 
 The stable production client ID is
 `https://oauth.presently.photo/oauth/client-metadata.json`, with native callback
 `photo.presently.oauth:/oauth/callback`. Configure the production environment
-from `services/oauth-worker/.env.example`. Vercel detects the root
-`vercel.json` Services configuration and builds the OAuth worker independently
-from `services/oauth-worker/Dockerfile.vercel`. Requests for
-`oauth.presently.photo` route to this service.
+from `services/oauth-worker/.env.example`. Railway project `Presently`, service
+`OAuth`, builds the service from `services/oauth-worker/Dockerfile` and gates
+deployments on `/healthz` using `services/oauth-worker/railway.json`.
+
+To deploy from the repository root:
+
+```sh
+railway up services/oauth-worker --path-as-root \
+  --project 295eacc5-e30f-4e96-8ba8-e6603558506e \
+  --environment production \
+  --service OAuth
+```
 
 ### Marketing Site
 
@@ -89,10 +111,9 @@ npm run check
 npm run build
 ```
 
-The root Vercel Services configuration builds the Astro site independently and
-routes non-OAuth domains, including `presently.photo`, to the web service.
-Pushes to `main` deploy both services through the project's Vercel Git
-integration.
+The `Deploy Marketing Site to Wisp` GitHub workflow builds the static Astro
+site and deploys it to Wisp. Marque maps `presently.photo` to Wisp while
+`oauth.presently.photo` maps to the Railway OAuth service.
 
 ## Reference material
 

@@ -1,27 +1,29 @@
 import Foundation
 
-enum FlashesStoryContract {
-    static let collection = "blue.flashes.story.post"
-    static let expiresInMinutes = 1_440
-    static let maximumImageBytes = 10_485_760
-    static let jpegMIMEType = "image/jpeg"
+public enum FlashesStoryContract {
+    public static let collection = "blue.flashes.story.post"
+    public static let expiresInMinutes = 1_440
+    public static let maximumImageBytes = 10_485_760
+    public static let jpegMIMEType = "image/jpeg"
 }
 
-struct ATProtoBlob: Codable, Equatable, Sendable {
-    struct Reference: Codable, Equatable, Sendable {
-        let link: String
+public struct ATProtoBlob: Codable, Equatable, Sendable {
+    public struct Reference: Codable, Equatable, Sendable {
+        public let link: String
+
+        public init(link: String) { self.link = link }
 
         enum CodingKeys: String, CodingKey {
             case link = "$link"
         }
     }
 
-    let type: String
-    let reference: Reference
-    let mimeType: String
-    let size: Int
+    public let type: String
+    public let reference: Reference
+    public let mimeType: String
+    public let size: Int
 
-    init(cid: String, mimeType: String, size: Int) {
+    public init(cid: String, mimeType: String, size: Int) {
         type = "blob"
         reference = Reference(link: cid)
         self.mimeType = mimeType
@@ -36,11 +38,18 @@ struct ATProtoBlob: Codable, Equatable, Sendable {
     }
 }
 
-struct FlashesStoryRecord: Codable, Equatable, Sendable {
-    let type: String
-    let image: ATProtoBlob
-    let createdAt: String
-    let expiresInMinutes: Int
+public struct FlashesStoryRecord: Codable, Equatable, Sendable {
+    public let type: String
+    public let image: ATProtoBlob
+    public let createdAt: String
+    public let expiresInMinutes: Int
+
+    public init(type: String = FlashesStoryContract.collection, image: ATProtoBlob, createdAt: String, expiresInMinutes: Int = FlashesStoryContract.expiresInMinutes) {
+        self.type = type
+        self.image = image
+        self.createdAt = createdAt
+        self.expiresInMinutes = expiresInMinutes
+    }
 
     enum CodingKeys: String, CodingKey {
         case type = "$type"
@@ -50,15 +59,15 @@ struct FlashesStoryRecord: Codable, Equatable, Sendable {
     }
 }
 
-enum FlashesStoryRecordFactory {
-    private static let timestampFormatter: ISO8601DateFormatter = {
+public enum FlashesStoryRecordFactory {
+    private static func timestampFormatter() -> ISO8601DateFormatter {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
-    }()
+    }
 
-    static func make(blob: ATProtoBlob, createdAt: Date) throws -> FlashesStoryRecord {
+    public static func make(blob: ATProtoBlob, createdAt: Date) throws -> FlashesStoryRecord {
         guard blob.mimeType == FlashesStoryContract.jpegMIMEType else {
             throw StoryContractError.unsupportedMIMEType(blob.mimeType)
         }
@@ -69,30 +78,36 @@ enum FlashesStoryRecordFactory {
         return FlashesStoryRecord(
             type: FlashesStoryContract.collection,
             image: blob,
-            createdAt: timestampFormatter.string(from: createdAt),
+            createdAt: timestampFormatter().string(from: createdAt),
             expiresInMinutes: FlashesStoryContract.expiresInMinutes
         )
     }
 }
 
-struct UploadBlobResponse: Decodable, Equatable, Sendable {
-    let blob: ATProtoBlob
+public struct UploadBlobResponse: Decodable, Equatable, Sendable {
+    public let blob: ATProtoBlob
+
+    public init(blob: ATProtoBlob) { self.blob = blob }
 }
 
-struct CreateRecordResponse: Decodable, Equatable, Sendable {
-    let uri: String
-    let cid: String
+public struct CreateRecordResponse: Decodable, Equatable, Sendable {
+    public let uri: String
+    public let cid: String
+
+    public init(uri: String, cid: String) { self.uri = uri; self.cid = cid }
 }
 
-struct PublishedStory: Equatable, Sendable {
-    let uri: String
-    let cid: String?
+public struct PublishedStory: Equatable, Sendable {
+    public let uri: String
+    public let cid: String?
+
+    public init(uri: String, cid: String?) { self.uri = uri; self.cid = cid }
 }
 
-enum ATProtoTID {
+public enum ATProtoTID {
     private static let alphabet = Array("234567abcdefghijklmnopqrstuvwxyz")
 
-    static func make(
+    public static func make(
         date: Date = Date(),
         clockIdentifier: UInt16 = UInt16.random(in: 0..<1_024)
     ) -> String {
@@ -109,7 +124,7 @@ enum ATProtoTID {
     }
 }
 
-enum StoryContractError: LocalizedError, Equatable {
+public enum StoryContractError: LocalizedError, Equatable {
     case unsupportedMIMEType(String)
     case imageTooLarge(Int)
     case invalidBlobResponse
@@ -117,10 +132,10 @@ enum StoryContractError: LocalizedError, Equatable {
     case createRecordFailed(Int)
     case invalidCreateRecordResponse
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case let .unsupportedMIMEType(mimeType):
-            "Presently's MVP can only publish JPEG images, not \(mimeType)."
+            "Stories can only publish JPEG images, not \(mimeType)."
         case let .imageTooLarge(bytes):
             "The image is \(bytes) bytes; Flashes stories allow at most 10 MiB."
         case .invalidBlobResponse:

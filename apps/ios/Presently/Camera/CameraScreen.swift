@@ -1,3 +1,4 @@
+import PresentlyKit
 import LockedCameraCapture
 import SwiftData
 import SwiftUI
@@ -8,12 +9,16 @@ struct CameraScreen: View {
     @Environment(OAuthSessionManager.self) private var auth
     @Query private var storedSettings: [AppSettings]
     @State private var camera = CameraController()
+    private let captureLaunch = PresentlyCaptureLaunch.shared
     @State private var feedbackMessage: String?
     @State private var presentedSheet: CameraSheet?
     @State private var saveThisPhoto = false
-    @State private var zoomAtGestureStart: Double?
+    @State private var capturedViewportAspectRatio: Double?
     @State private var isPublishing = false
     @State private var activeDraft: LocalStoryDraft?
+    @State private var editor: StoryEditorSession?
+    @State private var isEditingTextInEditor = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private var settings: AppSettings? {
         storedSettings.first
@@ -23,15 +28,15 @@ struct CameraScreen: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if let imageData = camera.capturedPhotoData,
-               let image = UIImage(data: imageData) {
-                review(image: image, imageData: imageData)
+            if let editor {
+                review(editor: editor)
             } else {
                 liveCamera
             }
         }
         .task {
             ensureSettingsExist()
+            if captureLaunch.requestID == 0 { restoreDraft() }
             let defaultCamera = settings?.defaultCamera ?? .back
             if #available(iOS 18.0, *) {
                 try? await PresentlyCaptureIntent.updateAppContext(
@@ -43,6 +48,27 @@ struct CameraScreen: View {
             await camera.start(
                 preferredFacing: defaultCamera.cameraFacing
             )
+        }
+        .onChange(of: captureLaunch.requestID) { _, _ in
+            if let editor {
+                editor.endTransform()
+                persistComposition(editor.composition)
+            }
+            // Keep the pending draft in the store while opening a fresh viewfinder.
+            editor = nil
+            activeDraft = nil
+            isEditingTextInEditor = false
+            camera.retake()
+        }
+        .onChange(of: camera.capturedPhotoData) { _, data in
+            guard let data else { return }
+            beginDraft(data: data)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active, let editor {
+                editor.endTransform()
+                persistComposition(editor.composition)
+            }
         }
         .onChange(of: settings?.defaultCamera) { _, preference in
             guard let preference else { return }
@@ -76,244 +102,158 @@ struct CameraScreen: View {
         ) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(feedbackMessage ?? "")
+            if let feedbackMessage {
+                Text(feedbackMessage)
+            }
         }
+        .sensoryFeedback(.impact(weight: .medium), trigger: camera.capturedPhotoData != nil)
+        .sensoryFeedback(.selection, trigger: camera.zoomFactor)
     }
 
     private var liveCamera: some View {
-        ZStack {
-            CameraPreview(
-                session: camera.session,
-                isCaptureEnabled: camera.state == .ready && !camera.isCapturing,
-                onCapture: camera.capture
-            )
-                .ignoresSafeArea()
-                .gesture(
-                    MagnifyGesture()
-                        .onChanged { value in
-                            guard !camera.supportsSmartSelfieFraming else { return }
-                            let startingZoom = zoomAtGestureStart ?? camera.zoomFactor
-                            zoomAtGestureStart = startingZoom
-                            camera.setZoomFactor(startingZoom * value.magnification)
-                        }
-                        .onEnded { _ in
-                            zoomAtGestureStart = nil
-                        }
+        CameraViewfinder(camera: camera, onCapture: capturePhoto)
+            .overlay(alignment: .top) {
+                CameraHeader(
+                    isConnected: auth.session != nil,
+                    openAccount: { presentedSheet = .account },
+                    openSettings: { presentedSheet = .settings }
                 )
-
-            VStack {
-                HStack {
-                    Text("Presently")
-                        .font(.headline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.black.opacity(0.45), in: Capsule())
-                    Spacer()
-                    Button {
-                        presentedSheet = .account
-                    } label: {
-                        Image(
-                            systemName: auth.session == nil
-                                ? "person.crop.circle"
-                                : "person.crop.circle.fill.badge.checkmark"
-                        )
-                        .font(.body.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .background(.black.opacity(0.45), in: Circle())
-                    }
-                    .accessibilityLabel(
-                        auth.session == nil
-                            ? "Connect account"
-                            : "Connected account"
-                    )
-                    Button {
-                        presentedSheet = .settings
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 44, height: 44)
-                            .background(.black.opacity(0.45), in: Circle())
-                    }
-                    .accessibilityLabel("Camera settings")
-                }
-                .foregroundStyle(.white)
-                .padding()
-
-                Spacer()
-
-                cameraStateMessage
-
-                cameraControls
             }
-        }
     }
 
-    private var cameraControls: some View {
-        VStack(spacing: 20) {
-            if camera.facing == .front, camera.supportsSmartSelfieFraming {
-                Picker("Selfie framing", selection: Binding(
-                    get: { camera.selfieFramingMode },
-                    set: { camera.setSelfieFramingMode($0) }
-                )) {
-                    ForEach(SelfieFramingMode.allCases) { mode in
-                        Label(
-                            mode.title,
-                            systemImage: mode == .portrait
-                                ? "rectangle.portrait"
-                                : "rectangle"
-                        )
-                        .tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 260)
-                .accessibilityHint("Changes the Center Stage photo orientation")
-            } else {
-                zoomControls
-            }
-
-            HStack {
-                Color.clear
-                    .frame(width: 54, height: 54)
-
-                Spacer()
-
-                Button {
-                    saveThisPhoto = false
-                    camera.capture()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .stroke(.white, lineWidth: 4)
-                            .frame(width: 78, height: 78)
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 66, height: 66)
-                    }
-                }
-                .disabled(camera.state != .ready || camera.isCapturing)
-                .accessibilityLabel("Take photo")
-
-                Spacer()
-
-                Button {
-                    Task {
-                        await camera.switchCamera()
-                    }
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                        .font(.title2)
-                        .foregroundStyle(.white)
-                        .frame(width: 54, height: 54)
-                        .background(.black.opacity(0.5), in: Circle())
-                }
-                .disabled(!camera.canSwitchCamera || camera.isSwitchingCamera)
-                .accessibilityLabel("Switch camera")
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-    }
-
-    private var zoomControls: some View {
-        HStack(spacing: 8) {
-            ForEach(camera.quickZoomFactors, id: \.self) { zoomFactor in
-                Button {
-                    camera.setZoomFactor(zoomFactor)
-                } label: {
-                    Text(formatZoom(zoomFactor))
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(
-                            abs(camera.zoomFactor - zoomFactor) < 0.05 ? .yellow : .white
-                        )
-                        .frame(width: 42, height: 32)
-                        .background(.black.opacity(0.5), in: Capsule())
-                }
-                .accessibilityLabel("Zoom \(formatZoom(zoomFactor))")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var cameraStateMessage: some View {
-        switch camera.state {
-        case .idle, .ready:
-            EmptyView()
-        case .requestingPermission:
-            ProgressView("Opening camera…")
-                .foregroundStyle(.white)
-                .padding()
-        case .denied:
-            Text("Camera access is required. Enable it in Settings.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.white)
-                .padding()
-        case let .unavailable(message):
-            Text(message)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.white)
-                .padding()
-        }
-    }
-
-    private func review(image: UIImage, imageData: Data) -> some View {
-        ZStack {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            VStack {
-                Spacer()
-
-                VStack(spacing: 18) {
-                    saveToPhotosReviewOption
-
-                    HStack(spacing: 56) {
-                        Button(role: .cancel) {
-                            saveThisPhoto = false
-                            activeDraft = nil
-                            camera.retake()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.title2.bold())
-                                .foregroundStyle(.white)
-                                .frame(width: 64, height: 64)
-                                .background(.black.opacity(0.72), in: Circle())
-                        }
-                        .disabled(isPublishing)
-                        .accessibilityLabel("Don’t Post Photo")
-                        .accessibilityHint("Returns to the camera")
-
-                        Button {
-                            Task {
-                                await publishStory(imageData: imageData)
+    private func review(editor: StoryEditorSession) -> some View {
+        NavigationStack {
+            StoryEditorView(
+                session: editor,
+                isEditable: !isPublishing && activeDraft?.recordKey == nil,
+                onError: { feedbackMessage = $0 },
+                onEditingChanged: { isEditingTextInEditor = $0 }
+            )
+            .overlay(alignment: .bottom) {
+                if !isEditingTextInEditor {
+                    VStack(spacing: 14) {
+                        saveToPhotosReviewOption
+                        HStack(spacing: 12) {
+                            Button(role: .destructive) {
+                                discardDraft()
+                            } label: {
+                                Label("Discard", systemImage: "trash")
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity)
                             }
-                        } label: {
-                            if isPublishing {
-                                ProgressView()
-                                    .tint(.white)
-                                    .frame(width: 64, height: 64)
-                                    .background(.green, in: Circle())
-                            } else {
-                                Image(systemName: "checkmark")
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.white)
-                                    .frame(width: 64, height: 64)
-                                    .background(.green, in: Circle())
+                            .modifier(PresentlyGlassButtonStyle())
+                            .tint(.red)
+                            .controlSize(.large)
+                            .disabled(isPublishing || !editor.canFinishEditing)
+
+                            Button {
+                                Task { await prepareAndPublish() }
+                            } label: {
+                                Group {
+                                    if isPublishing {
+                                        ProgressView()
+                                    } else {
+                                        Label("Post Photo", systemImage: "paperplane.fill")
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
                             }
+                            .modifier(PresentlyGlassButtonStyle(prominent: true))
+                            .controlSize(.large)
+                            .accessibilityLabel(isPublishing ? "Posting photo" : "Post Photo")
+                            .disabled(isPublishing || !editor.canFinishEditing)
                         }
-                        .disabled(isPublishing)
-                        .accessibilityLabel(
-                            isPublishing ? "Posting Photo" : "Post Photo"
-                        )
                     }
+                    .padding()
+                    .frame(maxWidth: 560)
+                    .frame(maxWidth: .infinity)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .padding()
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
-                .padding()
             }
+            .toolbar(.hidden, for: .navigationBar)
+            .preferredColorScheme(.dark)
         }
+    }
+
+    private func attachEditor(to draft: LocalStoryDraft) throws {
+        draft.preserveOriginalForEditing()
+        let session = try StoryEditorSession(photoData: draft.originalImageData ?? draft.imageData, recipe: draft.editorData)
+        activeDraft = draft
+        session.onChange = { composition in persistComposition(composition) }
+        editor = session
+    }
+
+    private func capturePhoto(viewportAspectRatio: Double?) {
+        guard camera.state == .ready, !camera.isCapturing else { return }
+        saveThisPhoto = false
+        capturedViewportAspectRatio = viewportAspectRatio
+        camera.capture()
+    }
+
+    private func beginDraft(data: Data) {
+        do {
+            let draft = LocalStoryDraft(imageData: data)
+            draft.originalImageData = data
+            draft.editorData = try StoryComposition(usesStoryCrop: true, captureViewportAspectRatio: capturedViewportAspectRatio).encoded()
+            try attachEditor(to: draft)
+            modelContext.insert(draft)
+            try modelContext.save()
+        } catch { feedbackMessage = "Could not save your draft: \(error.localizedDescription)" }
+    }
+
+    private func restoreDraft() {
+        guard editor == nil else { return }
+        do {
+            let descriptor = FetchDescriptor<LocalStoryDraft>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+            if let draft = try modelContext.fetch(descriptor).first(where: { $0.state != .published }) {
+                if draft.state == .publishing { draft.state = .failed }
+                try attachEditor(to: draft)
+                try modelContext.save()
+                return
+            }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--editor-demo") {
+                let renderer = UIGraphicsImageRenderer(size: CGSize(width: 900, height: 1200))
+                let image = renderer.image { context in
+                    UIColor.systemTeal.setFill(); context.fill(CGRect(x: 0, y: 0, width: 900, height: 1200))
+                    UIColor.systemIndigo.setFill(); context.fill(CGRect(x: 0, y: 750, width: 900, height: 450))
+                }
+                if let data = image.jpegData(compressionQuality: 0.9) { beginDraft(data: data) }
+            }
+            #endif
+        } catch { feedbackMessage = "Could not restore your pending photo: \(error.localizedDescription)" }
+    }
+
+    private func persistComposition(_ composition: StoryComposition) {
+        guard let draft = activeDraft, draft.recordKey == nil else { return }
+        do {
+            draft.editorData = try composition.encoded()
+            try modelContext.save()
+        } catch { feedbackMessage = "Your latest edits could not be saved: \(error.localizedDescription)" }
+    }
+
+    private func discardDraft() {
+        if let draft = activeDraft { modelContext.delete(draft) }
+        do { try modelContext.save() }
+        catch { feedbackMessage = "Could not discard your draft: \(error.localizedDescription)"; return }
+        activeDraft = nil
+        editor = nil
+        saveThisPhoto = false
+        camera.retake()
+    }
+
+    @MainActor
+    private func prepareAndPublish() async {
+        guard let editor, let draft = activeDraft, editor.canFinishEditing, !isPublishing else { return }
+        guard auth.session?.canPublishStory == true else { presentedSheet = .account; return }
+        do {
+            if draft.recordKey == nil {
+                draft.editorData = try editor.composition.encoded()
+                draft.imageData = try StoryRenderer.jpeg(photo: editor.photo, composition: editor.composition, maximumBytes: FlashesStoryContract.maximumImageBytes)
+                try modelContext.save()
+            }
+            await publishStory(imageData: draft.imageData)
+        } catch { feedbackMessage = "Could not prepare your photo: \(error.localizedDescription)" }
     }
 
     private func ensureSettingsExist() {
@@ -356,7 +296,15 @@ struct CameraScreen: View {
             else {
                 continue
             }
-            modelContext.insert(LocalStoryDraft(imageData: data))
+            do {
+                let draft = LocalStoryDraft(imageData: data)
+                draft.originalImageData = data
+                draft.editorData = try StoryComposition(usesStoryCrop: true).encoded()
+                modelContext.insert(draft)
+            } catch {
+                feedbackMessage = "Camera Control capture could not be prepared: \(error.localizedDescription)"
+                return
+            }
         }
 
         guard !imageFiles.isEmpty else { return }
@@ -402,6 +350,7 @@ struct CameraScreen: View {
             draft = activeDraft
             draft.state = .publishing
             draft.lastError = nil
+            if draft.recordKey == nil { draft.recordKey = ATProtoTID.make() }
         } else {
             draft = LocalStoryDraft(
                 imageData: imageData,
@@ -452,6 +401,7 @@ struct CameraScreen: View {
                 feedbackMessage = "Your story is live."
             }
             activeDraft = nil
+            editor = nil
             saveThisPhoto = false
             camera.retake()
         } catch {
@@ -463,12 +413,7 @@ struct CameraScreen: View {
         }
     }
 
-    private func formatZoom(_ zoomFactor: Double) -> String {
-        if zoomFactor.rounded() == zoomFactor {
-            return "\(Int(zoomFactor))×"
-        }
-        return String(format: "%.1f×", zoomFactor)
-    }
+
 }
 
 private enum CameraSheet: String, Identifiable {
@@ -537,8 +482,36 @@ private struct CameraSettingsSheet: View {
                 } footer: {
                     Text("The camera switch button still changes cameras for the current session.")
                 }
+
+                if #available(iOS 18.0, *) {
+                    Section("Quick camera access") {
+                        Label("Control Center", systemImage: "switch.2")
+                        Text("Open Control Center, touch and hold an empty area, then choose Add a Control and search for Presently.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Label("Lock Screen", systemImage: "lock")
+                        Text("Touch and hold the Lock Screen, choose Customize, then replace a bottom control with Presently Camera.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Label("Camera Control", systemImage: "camera")
+                        Text("On a supported iPhone, open Settings → Camera → Camera Control and select Presently.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
+                    Link(destination: PresentlyLinks.feedbackBoard) {
+                        Label("Open Feedback Board", systemImage: "arrow.up.right.square")
+                    }
+                    .accessibilityHint("Opens the public Presently board on UserInput")
+                } header: {
+                    Text("Feedback")
+                } footer: {
+                    Text("Report a bug, request a feature, ask a question, or leave a comment.")
+                }
             }
-            .navigationTitle("Camera Settings")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -592,4 +565,37 @@ private extension DefaultCameraPreference {
     CameraScreen()
         .modelContainer(for: [LocalStoryDraft.self, AppSettings.self], inMemory: true)
         .environment(OAuthSessionManager())
+}
+
+private struct CameraHeader: View {
+    let isConnected: Bool
+    let openAccount: () -> Void
+    let openSettings: () -> Void
+
+    var body: some View {
+        HStack {
+            Text("Presently")
+                .font(.headline)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .modifier(PresentlyControlSurface())
+            Spacer()
+            Button(action: openAccount) {
+                Label(
+                    isConnected ? "Connected account" : "Connect account",
+                    systemImage: isConnected
+                        ? "person.crop.circle.fill.badge.checkmark"
+                        : "person.crop.circle"
+                )
+            }
+            Button("Settings", systemImage: "gearshape", action: openSettings)
+        }
+        .labelStyle(.iconOnly)
+        .modifier(PresentlyGlassButtonStyle())
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+        .foregroundStyle(.white)
+        .padding()
+        .environment(\.colorScheme, .dark)
+    }
 }

@@ -1,0 +1,11 @@
+# Local Android SDK configuration
+local.properties
+
+# Play upload signing credentials
+*.jks
+*.keystore
+keystore.properties
+play-service-account*.json
+
+# Release verification output
+release-artifacts/

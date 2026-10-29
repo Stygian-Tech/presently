@@ -1,5 +1,12 @@
+import Foundation
 import SwiftData
 import SwiftUI
+
+enum PresentlyLinks {
+    static let feedbackBoard = URL(
+        string: "https://userinput.app/s/did:plc:qy5pluw2bsuq2x6albsgkvx3/3msgekt2gyt2p"
+    )!
+}
 
 @main
 struct PresentlyApp: App {

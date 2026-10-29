@@ -1,26 +1,26 @@
 @preconcurrency import AVFoundation
 import Observation
 
-enum SelfieFramingMode: String, CaseIterable, Identifiable, Sendable {
+public enum SelfieFramingMode: String, CaseIterable, Identifiable, Sendable {
     case portrait
     case landscape
 
-    var id: Self { self }
+    public var id: Self { self }
 
-    var title: String {
+    public var title: String {
         rawValue.capitalized
     }
 }
 
 @MainActor
 @Observable
-final class CameraController: NSObject {
-    enum Facing: Equatable, Sendable {
+public final class CameraController: NSObject {
+    public enum Facing: Equatable, Sendable {
         case back
         case front
     }
 
-    enum State: Equatable {
+    public enum State: Equatable {
         case idle
         case requestingPermission
         case ready
@@ -30,7 +30,7 @@ final class CameraController: NSObject {
 
     private let cameraSession = CameraSession()
 
-    override init() {
+    public override init() {
         super.init()
         cameraSession.onZoomChanged = { [weak self] zoomFactor in
             Task { @MainActor in
@@ -51,29 +51,29 @@ final class CameraController: NSObject {
         }
     }
 
-    var session: AVCaptureSession {
+    public var session: AVCaptureSession {
         cameraSession.session
     }
 
-    var state: State = .idle
-    var capturedPhotoData: Data?
-    var isCapturing = false
-    var facing: Facing = .back
-    var zoomFactor = 1.0
-    var minimumZoomFactor = 1.0
-    var maximumZoomFactor = 1.0
-    var canSwitchCamera = false
-    var isSwitchingCamera = false
-    var selfieFramingMode = SelfieFramingMode.portrait
-    var supportsSmartSelfieFraming = false
+    public private(set) var state: State = .idle
+    public private(set) var capturedPhotoData: Data?
+    public private(set) var isCapturing = false
+    public private(set) var facing: Facing = .back
+    public private(set) var zoomFactor = 1.0
+    public private(set) var minimumZoomFactor = 1.0
+    public private(set) var maximumZoomFactor = 1.0
+    public private(set) var canSwitchCamera = false
+    public private(set) var isSwitchingCamera = false
+    public private(set) var selfieFramingMode = SelfieFramingMode.portrait
+    public private(set) var supportsSmartSelfieFraming = false
 
-    var quickZoomFactors: [Double] {
+    public var quickZoomFactors: [Double] {
         [0.5, 1, 2, 3].filter {
             $0 >= minimumZoomFactor - 0.01 && $0 <= maximumZoomFactor + 0.01
         }
     }
 
-    func start(preferredFacing: Facing = .back) async {
+    public func start(preferredFacing: Facing = .back) async {
         guard state != .ready else { return }
 
         state = .requestingPermission
@@ -102,24 +102,24 @@ final class CameraController: NSObject {
         }
     }
 
-    func stop() {
+    public func stop() {
         state = .idle
         cameraSession.stop()
     }
 
-    func capture() {
+    public func capture() {
         guard state == .ready, !isCapturing else { return }
         isCapturing = true
 
         cameraSession.capture(delegate: self)
     }
 
-    func switchCamera() async {
+    public func switchCamera() async {
         let requestedFacing: Facing = facing == .back ? .front : .back
         await switchCamera(to: requestedFacing)
     }
 
-    func switchCamera(to requestedFacing: Facing) async {
+    public func switchCamera(to requestedFacing: Facing) async {
         guard state == .ready, !isSwitchingCamera else { return }
         guard requestedFacing != facing else { return }
         isSwitchingCamera = true
@@ -134,20 +134,20 @@ final class CameraController: NSObject {
         }
     }
 
-    func setZoomFactor(_ requestedZoomFactor: Double) {
+    public func setZoomFactor(_ requestedZoomFactor: Double) {
         guard !supportsSmartSelfieFraming else { return }
         let zoomFactor = min(max(requestedZoomFactor, minimumZoomFactor), maximumZoomFactor)
         self.zoomFactor = zoomFactor
         cameraSession.setZoomFactor(zoomFactor)
     }
 
-    func setSelfieFramingMode(_ mode: SelfieFramingMode) {
+    public func setSelfieFramingMode(_ mode: SelfieFramingMode) {
         guard facing == .front, supportsSmartSelfieFraming else { return }
         selfieFramingMode = mode
         cameraSession.setSelfieFramingMode(mode)
     }
 
-    func retake() {
+    public func retake() {
         capturedPhotoData = nil
     }
 
@@ -165,7 +165,7 @@ final class CameraController: NSObject {
 }
 
 extension CameraController: AVCapturePhotoCaptureDelegate {
-    nonisolated func photoOutput(
+    public nonisolated func photoOutput(
         _ output: AVCapturePhotoOutput,
         didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
@@ -525,9 +525,11 @@ private final class SmartFramingCoordinator {
         self.monitor = monitor
         setMode(initialMode)
         observation = monitor.observe(\.recommendedFraming, options: [.new]) {
-            [weak self] monitor, _ in
+            [camera] monitor, _ in
             guard let framing = monitor.recommendedFraming else { return }
-            self?.apply(framing)
+            // KVO may call on any thread. Capture only the device; configuration
+            // is protected by its lock, without sharing coordinator state.
+            Self.apply(camera: camera, aspectRatio: framing.aspectRatio, zoomFactor: CGFloat(framing.zoomFactor))
         }
         try monitor.startMonitoring()
     }
@@ -537,7 +539,7 @@ private final class SmartFramingCoordinator {
         monitor.enabledFramings = monitor.supportedFramings.filter {
             $0.aspectRatio == aspectRatio
         }
-        apply(aspectRatio: aspectRatio, zoomFactor: 1)
+        Self.apply(camera: camera, aspectRatio: aspectRatio, zoomFactor: 1)
     }
 
     func stop() {
@@ -546,14 +548,8 @@ private final class SmartFramingCoordinator {
         monitor.stopMonitoring()
     }
 
-    private func apply(_ framing: AVCaptureFraming) {
-        apply(
-            aspectRatio: framing.aspectRatio,
-            zoomFactor: CGFloat(framing.zoomFactor)
-        )
-    }
-
-    private func apply(
+    private static func apply(
+        camera: AVCaptureDevice,
         aspectRatio: AVCaptureDevice.AspectRatio,
         zoomFactor: CGFloat
     ) {
@@ -606,7 +602,7 @@ private enum CameraError: LocalizedError {
         case .noFrontCamera:
             "No front camera is available on this device."
         case .configurationFailed:
-            "Presently could not configure the camera."
+            "The camera could not be configured."
         }
     }
 }

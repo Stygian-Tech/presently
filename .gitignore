@@ -10,11 +10,10 @@ xcuserdata/
 **/build/
 local.properties
 
-# JavaScript / Vercel
+# JavaScript / deployment
 node_modules/
 .astro/
 dist/
-.vercel/
 .env
 .env.*
 !.env.example
@@ -22,3 +21,7 @@ dist/
 # Editors
 .idea/
 *.iml
+
+# Swift Package Manager
+.build/
+.swiftpm/

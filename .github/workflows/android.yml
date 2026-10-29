@@ -1,0 +1,112 @@
+name: Android
+
+on:
+  pull_request:
+    paths:
+      - "apps/android/**"
+      - ".github/workflows/android.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test and lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/android
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Android verification
+        run: ./gradlew --no-daemon test lintRelease
+
+  signed-bundle:
+    name: Build signed beta bundle
+    if: github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: android-beta
+    defaults:
+      run:
+        working-directory: apps/android
+    env:
+      PRESENTLY_UPLOAD_KEYSTORE_BASE64: ${{ secrets.PRESENTLY_UPLOAD_KEYSTORE_BASE64 }}
+      PRESENTLY_UPLOAD_STORE_PASSWORD: ${{ secrets.PRESENTLY_UPLOAD_STORE_PASSWORD }}
+      PRESENTLY_UPLOAD_KEY_ALIAS: ${{ secrets.PRESENTLY_UPLOAD_KEY_ALIAS }}
+      PRESENTLY_UPLOAD_KEY_PASSWORD: ${{ secrets.PRESENTLY_UPLOAD_KEY_PASSWORD }}
+      PRESENTLY_VERSION_CODE: ${{ vars.PRESENTLY_VERSION_CODE || '1' }}
+      PRESENTLY_VERSION_NAME: ${{ vars.PRESENTLY_VERSION_NAME || '0.1.0' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Materialize upload keystore
+        env:
+          PRESENTLY_UPLOAD_STORE_FILE: ${{ runner.temp }}/presently-upload.jks
+        run: |
+          test -n "$PRESENTLY_UPLOAD_KEYSTORE_BASE64"
+          test -n "$PRESENTLY_UPLOAD_STORE_PASSWORD"
+          test -n "$PRESENTLY_UPLOAD_KEY_ALIAS"
+          test -n "$PRESENTLY_UPLOAD_KEY_PASSWORD"
+          umask 077
+          printf '%s' "$PRESENTLY_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$PRESENTLY_UPLOAD_STORE_FILE"
+          echo "PRESENTLY_UPLOAD_STORE_FILE=$PRESENTLY_UPLOAD_STORE_FILE" >> "$GITHUB_ENV"
+
+      - name: Build signed Android App Bundle
+        run: ./gradlew --no-daemon bundleRelease
+
+      - name: Verify and checksum bundle
+        run: |
+          mkdir -p release-artifacts
+          cp app/build/outputs/bundle/release/app-release.aab release-artifacts/presently-${PRESENTLY_VERSION_NAME}-${PRESENTLY_VERSION_CODE}.aab
+          jarsigner -verify -strict -certs -keystore "$PRESENTLY_UPLOAD_STORE_FILE" -storepass:env PRESENTLY_UPLOAD_STORE_PASSWORD release-artifacts/*.aab "$PRESENTLY_UPLOAD_KEY_ALIAS"
+          sha256sum release-artifacts/*.aab > release-artifacts/SHA256SUMS
+          printf 'commit=%s\n' "$GITHUB_SHA" > release-artifacts/BUILD-METADATA
+          printf 'versionName=%s\n' "$PRESENTLY_VERSION_NAME" >> release-artifacts/BUILD-METADATA
+          printf 'versionCode=%s\n' "$PRESENTLY_VERSION_CODE" >> release-artifacts/BUILD-METADATA
+
+      - name: Upload signed beta bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: presently-android-beta-${{ env.PRESENTLY_VERSION_CODE }}
+          path: apps/android/release-artifacts/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,4 +1,5 @@
 import AppIntents
+import Observation
 
 enum PresentlyCaptureFacing: String, Codable, Sendable {
     case back
@@ -7,6 +8,14 @@ enum PresentlyCaptureFacing: String, Codable, Sendable {
 
 struct PresentlyCaptureContext: Codable, Equatable, Sendable {
     var facing: PresentlyCaptureFacing = .back
+}
+
+/// Process-local routing; the capture extension always opens its own viewfinder.
+@MainActor
+@Observable
+final class PresentlyCaptureLaunch {
+    static let shared = PresentlyCaptureLaunch()
+    var requestID = 0
 }
 
 @available(iOS 18.0, *)
@@ -20,6 +29,7 @@ struct PresentlyCaptureIntent: CameraCaptureIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        .result()
+        PresentlyCaptureLaunch.shared.requestID += 1
+        return .result()
     }
 }

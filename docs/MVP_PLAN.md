@@ -13,7 +13,8 @@ validate browsing, engagement, group moments, or event discovery.
 1. Launch Presently directly into a full-screen camera.
 2. If signed out, connect an AT Protocol account through the system browser.
 3. Capture one still photo.
-4. Review, retake, and choose whether to save a copy to the device library.
+4. Review, optionally add text or static stickers, retake, and choose whether
+   to save a copy of the finished photo to the device library.
 5. Tap **Post story**.
 6. Presently uploads one JPEG blob to the signed-in account's PDS.
 7. Presently creates a `blue.flashes.story.post` record with a 24-hour expiry.
@@ -31,17 +32,20 @@ deletion from every copy of the network.
 - Android 23+ Jetpack Compose app using CameraX and Room.
 - Native public-client AT Protocol OAuth with PKCE, PAR, DPoP, and secure token
   storage on each platform.
-- A small Go HTTP service deployed from `Dockerfile.vercel` that publishes the
-  OAuth client metadata document.
+- A small Go HTTP service deployed to Railway from
+  `services/oauth-worker/Dockerfile` that publishes the OAuth client metadata
+  document.
 - JPEG output, under the schema's 10 MiB maximum.
 - Local pending/failed draft persistence and safe retry.
+- Native text/emoji/static sticker editing, layer transforms, center guides,
+  delete/undo, and editable draft restoration. See [STORY_EDITOR.md](STORY_EDITOR.md).
 - Optional save to Photos/MediaStore.
 - Exact Flashes `blue.flashes.story.post` compatibility.
 
 ### Excluded
 
 - Feed, story viewer, replies, reactions, view counts, notifications.
-- Video, multiple images, text overlays, facets, filters, editing.
+- Video, multiple story images, animated stickers, subject cutouts, facets and filters.
 - Events, RSVP discovery, GPS, group moments, or a Presently lexicon.
 - A backend that stores user access or refresh tokens.
 - Claiming network deletion when the record's display window expires.
@@ -64,10 +68,10 @@ Native OAuth session (Keychain / Android Keystore)
    v
 Published AT URI or retryable failure
 
-Vercel Go container --> stable public OAuth client metadata only
+Railway Go container --> stable public OAuth client metadata only
 ```
 
-Each mobile app owns its OAuth tokens and DPoP keys. The Vercel deployment is
+Each mobile app owns its OAuth tokens and DPoP keys. The Railway deployment is
 not an auth proxy and never receives account credentials.
 
 ## Delivery slices
@@ -145,7 +149,7 @@ capture-to-publish completion without introducing a feed.
 - Images above 10 MiB are recompressed or rejected before record creation.
 - The UI does not report success until `createRecord` returns an AT URI.
 - Failed drafts survive process death and expose retry/discard controls.
-- No OAuth tokens, DPoP private keys, or captured images reach the Vercel
+- No OAuth tokens, DPoP private keys, or captured images reach the Railway
   metadata service.
 
 ## Decisions still needed before Slice 1
