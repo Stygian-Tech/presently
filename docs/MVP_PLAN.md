@@ -32,8 +32,9 @@ deletion from every copy of the network.
 - Android 23+ Jetpack Compose app using CameraX and Room.
 - Native public-client AT Protocol OAuth with PKCE, PAR, DPoP, and secure token
   storage on each platform.
-- A small Go HTTP service deployed from `Dockerfile.vercel` that publishes the
-  OAuth client metadata document.
+- A small Go HTTP service deployed to Railway from
+  `services/oauth-worker/Dockerfile` that publishes the OAuth client metadata
+  document.
 - JPEG output, under the schema's 10 MiB maximum.
 - Local pending/failed draft persistence and safe retry.
 - Native text/emoji/static sticker editing, layer transforms, center guides,
@@ -67,10 +68,10 @@ Native OAuth session (Keychain / Android Keystore)
    v
 Published AT URI or retryable failure
 
-Vercel Go container --> stable public OAuth client metadata only
+Railway Go container --> stable public OAuth client metadata only
 ```
 
-Each mobile app owns its OAuth tokens and DPoP keys. The Vercel deployment is
+Each mobile app owns its OAuth tokens and DPoP keys. The Railway deployment is
 not an auth proxy and never receives account credentials.
 
 ## Delivery slices
@@ -148,7 +149,7 @@ capture-to-publish completion without introducing a feed.
 - Images above 10 MiB are recompressed or rejected before record creation.
 - The UI does not report success until `createRecord` returns an AT URI.
 - Failed drafts survive process death and expose retry/discard controls.
-- No OAuth tokens, DPoP private keys, or captured images reach the Vercel
+- No OAuth tokens, DPoP private keys, or captured images reach the Railway
   metadata service.
 
 ## Decisions still needed before Slice 1

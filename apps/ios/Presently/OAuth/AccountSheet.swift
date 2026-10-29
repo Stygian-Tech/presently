@@ -21,15 +21,13 @@ struct AccountSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            Form {
                 if let session = auth.session {
-                    connectedContent(session: session)
+                    connectedSection(session: session)
                 } else {
-                    signedOutContent
+                    signedOutSections
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
-            .background(Color(.systemGroupedBackground))
             .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -42,14 +40,16 @@ struct AccountSheet: View {
             .task(id: identifier) {
                 await updateSuggestions()
             }
+            .sensoryFeedback(.success, trigger: auth.session != nil)
         }
     }
 
-    private var signedOutContent: some View {
-        VStack(spacing: 24) {
+    @ViewBuilder
+    private var signedOutSections: some View {
+        Section {
             VStack(spacing: 12) {
                 Image(systemName: "camera.aperture")
-                    .font(.system(size: 38, weight: .medium))
+                    .font(.system(size: 42, weight: .medium))
                     .foregroundStyle(.tint)
                     .frame(width: 72, height: 72)
                     .background(.tint.opacity(0.12), in: Circle())
@@ -63,147 +63,110 @@ struct AccountSheet: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            .padding(.horizontal)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .listRowBackground(Color.clear)
+        }
 
-            VStack(spacing: 12) {
-                accountField
+        Section {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
 
-                if shouldShowSuggestions {
-                    suggestionList
+                TextField("Name or username", text: identifierBinding)
+                    .focused($isAccountFieldFocused)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .textContentType(.username)
+                    .submitLabel(.continue)
+                    .onSubmit(connect)
+
+                if isSearching {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if !identifier.isEmpty {
+                    Button {
+                        identifier = ""
+                        selectedSuggestion = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear Search")
                 }
+            }
 
-                if let errorMessage = auth.errorMessage {
-                    Label(
-                        errorMessage,
-                        systemImage: "exclamationmark.circle.fill"
-                    )
+            if let errorMessage = auth.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.circle.fill")
                     .font(.footnote)
                     .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+            }
 
-                Button(action: connect) {
-                    Group {
-                        if auth.isAuthorizing {
-                            ProgressView()
-                        } else {
-                            Text("Continue")
-                        }
+            Button(action: connect) {
+                HStack {
+                    Spacer()
+                    if auth.isAuthorizing {
+                        ProgressView()
+                    } else {
+                        Text("Continue").fontWeight(.semibold)
                     }
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 24)
+                    Spacer()
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(!canContinue || auth.isAuthorizing)
-            }
-
-            Label {
-                Text(
-                    "Your password stays with your account provider. Presently only asks to share photos you choose."
-                )
-            } icon: {
-                Image(systemName: "lock.fill")
-                    .foregroundStyle(.tint)
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.background, in: RoundedRectangle(cornerRadius: 16))
-        }
-        .padding(20)
-    }
-
-    private var accountField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
-            TextField("Name or username", text: identifierBinding)
-                .focused($isAccountFieldFocused)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .textContentType(.username)
-                .submitLabel(.continue)
-                .onSubmit(connect)
-
-            if isSearching {
-                ProgressView()
-                    .controlSize(.small)
-            } else if !identifier.isEmpty {
-                Button {
-                    identifier = ""
-                    selectedSuggestion = nil
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                }
-                .accessibilityLabel("Clear Search")
-            }
-        }
-        .padding(.horizontal, 14)
-        .frame(minHeight: 52)
-        .background(.background, in: RoundedRectangle(cornerRadius: 14))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(.separator.opacity(0.45), lineWidth: 0.5)
-        }
-    }
-
-    private var suggestionList: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, suggestion in
-                Button {
-                    select(suggestion)
-                } label: {
-                    AccountSuggestionRow(suggestion: suggestion)
-                }
-                .buttonStyle(.plain)
-
-                if index < suggestions.count - 1 {
-                    Divider()
-                        .padding(.leading, 62)
-                }
-            }
-        }
-        .background(.background, in: RoundedRectangle(cornerRadius: 14))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func connectedContent(session: OAuthSession) -> some View {
-        VStack(spacing: 24) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-
-            VStack(spacing: 8) {
-                Text("You’re Connected")
-                    .font(.title2.bold())
-                Text("@\(session.handle ?? session.accountDID)")
-                    .font(.headline)
-                Text("Presently is ready when you are.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .multilineTextAlignment(.center)
-
-            Button("Done") {
-                dismiss()
             }
             .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .frame(maxWidth: .infinity)
+            .disabled(!canContinue || auth.isAuthorizing)
+        } footer: {
+            Label("Your password stays with your account provider. Presently only asks to share photos you choose.", systemImage: "lock.fill")
+                .font(.footnote)
+        }
 
+        if shouldShowSuggestions {
+            Section("Account Suggestions") {
+                ForEach(suggestions) { suggestion in
+                    Button {
+                        select(suggestion)
+                    } label: {
+                        AccountSuggestionRow(suggestion: suggestion)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func connectedSection(session: OAuthSession) -> some View {
+        Section {
+            VStack(spacing: 16) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.green)
+
+                VStack(spacing: 4) {
+                    Text("You’re Connected")
+                        .font(.title2.bold())
+                    Text("@\(session.handle ?? session.accountDID)")
+                        .font(.headline)
+                    Text("Presently is ready when you are.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .listRowBackground(Color.clear)
+        }
+
+        Section {
             Button("Disconnect Account", role: .destructive) {
                 Task {
                     await auth.signOut()
                 }
             }
-            .font(.footnote)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .padding(24)
     }
 
     private var identifierBinding: Binding<String> {
@@ -291,7 +254,7 @@ private struct AccountSuggestionRow: View {
                     .resizable()
                     .foregroundStyle(.tertiary)
             }
-            .frame(width: 40, height: 40)
+            .frame(width: 36, height: 36)
             .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
@@ -311,8 +274,6 @@ private struct AccountSuggestionRow: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityHint("Selects this account")

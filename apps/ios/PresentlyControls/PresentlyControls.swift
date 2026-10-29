@@ -14,7 +14,7 @@ struct PresentlyCameraControl: ControlWidget {
             kind: "tech.stygian.presently.open-camera"
         ) {
             ControlWidgetButton(action: PresentlyCaptureIntent()) {
-                Label("Presently", systemImage: "camera.fill")
+                Label("Presently", image: "PresentlyCaptureGlyph")
             }
         }
         .displayName("Presently Camera")

@@ -2,8 +2,11 @@ package tech.stygian.presently.camera
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,6 +51,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,18 +77,42 @@ import java.util.concurrent.Executors
 @Composable
 fun CameraRoute(auth: OAuthSessionManager) {
     val context = LocalContext.current
+    val activity = LocalActivity.current
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                 PackageManager.PERMISSION_GRANTED,
         )
     }
+    var cameraPermissionRequestCompleted by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> hasCameraPermission = granted }
+    ) { granted ->
+        hasCameraPermission = granted
+        cameraPermissionRequestCompleted = true
+    }
+    val appSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        hasCameraPermission =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        cameraPermissionRequestCompleted = !hasCameraPermission
+    }
+    val permissionAction = cameraPermissionAction(
+        hasPermission = hasCameraPermission,
+        permissionRequestCompleted = cameraPermissionRequestCompleted,
+        shouldShowRationale = activity?.let {
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                it,
+                Manifest.permission.CAMERA,
+            )
+        } ?: false,
+    )
 
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
+            cameraPermissionRequestCompleted = false
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
@@ -104,9 +132,34 @@ fun CameraRoute(auth: OAuthSessionManager) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(24.dp),
             ) {
-                Text("Camera access is required to create a story.")
-                Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                    Text("Allow Camera")
+                Text(
+                    if (permissionAction == CameraPermissionAction.OPEN_APP_SETTINGS) {
+                        "Camera access is turned off. Enable it in Settings to create a story."
+                    } else {
+                        "Camera access is required to create a story."
+                    },
+                )
+                Button(
+                    onClick = {
+                        if (permissionAction == CameraPermissionAction.OPEN_APP_SETTINGS) {
+                            appSettingsLauncher.launch(
+                                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = Uri.fromParts("package", context.packageName, null)
+                                },
+                            )
+                        } else {
+                            cameraPermissionRequestCompleted = false
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    },
+                ) {
+                    Text(
+                        if (permissionAction == CameraPermissionAction.OPEN_APP_SETTINGS) {
+                            "Open Settings"
+                        } else {
+                            "Allow Camera"
+                        },
+                    )
                 }
             }
         }
@@ -138,6 +191,20 @@ private fun CameraScreen(auth: OAuthSessionManager) {
     }
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
+    var pendingLegacyPhotoPermissionAction by remember {
+        mutableStateOf<(() -> Unit)?>(null)
+    }
+    var skipLegacyPhotoSaveOnce by remember { mutableStateOf(false) }
+    val legacyPhotoPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val pendingAction = pendingLegacyPhotoPermissionAction
+        pendingLegacyPhotoPermissionAction = null
+        if (pendingAction != null) {
+            skipLegacyPhotoSaveOnce = !granted
+            pendingAction()
+        }
+    }
     var capturedJpeg by remember { mutableStateOf<ByteArray?>(null) }
     var saveThisPhoto by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
@@ -305,14 +372,30 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                 }
             },
             onOpenFeedbackBoard = {
-                runCatching {
-                    CustomTabsIntent.Builder()
-                        .setShowTitle(true)
-                        .build()
-                        .launchUrl(context, Uri.parse(PresentlyLinks.FeedbackBoard))
-                }.onFailure {
+                if (!openExternalLink(context, PresentlyLinks.FeedbackBoard)) {
                     scope.launch {
                         snackbar.showSnackbar("Could not open the feedback board.")
+                    }
+                }
+            },
+            onOpenPrivacyPolicy = {
+                if (!openExternalLink(context, PresentlyLinks.PrivacyPolicy)) {
+                    scope.launch {
+                        snackbar.showSnackbar("Could not open the privacy policy.")
+                    }
+                }
+            },
+            onOpenTerms = {
+                if (!openExternalLink(context, PresentlyLinks.Terms)) {
+                    scope.launch {
+                        snackbar.showSnackbar("Could not open the terms.")
+                    }
+                }
+            },
+            onOpenSupport = {
+                if (!openExternalLink(context, PresentlyLinks.Support)) {
+                    scope.launch {
+                        snackbar.showSnackbar("Could not open support.")
                     }
                 }
             },
@@ -456,78 +539,102 @@ private fun CameraScreen(auth: OAuthSessionManager) {
                     onPost = post@{
                         if (isPublishing || editorBusy || editorTransforming || pendingEditorWrites > 0) return@post
                         val shouldSavePhoto = settings.preference.shouldSave(saveThisPhoto)
-                        scope.launch {
-                            if (authState.session?.canPublishStory != true) {
-                                showAccount = true
-                                return@launch
-                            }
+                        val publishAction: () -> Unit = {
+                            scope.launch {
+                                if (authState.session?.canPublishStory != true) {
+                                    showAccount = true
+                                    return@launch
+                                }
 
-                            isPublishing = true
-                            var attemptDraft: LocalStoryDraft? = null
-                            try {
-                                val (frozen, export) = editorWrites.withLock {
-                                    editorStore.freeze(checkNotNull(activeDraft), composition)
-                                }
-                                val draft = frozen.copy(state = LocalStoryDraft.State.Publishing.storageValue, lastError = null)
-                                dao.upsertDraft(draft)
-                                activeDraft = draft
-                                attemptDraft = draft
-                                val recordKey = checkNotNull(draft.recordKey)
-                                val published = auth.publishStory(
-                                    jpegData = export,
-                                    createdAt = Instant.ofEpochMilli(
-                                        draft.createdAtEpochMillis,
-                                    ),
-                                    recordKey = recordKey,
-                                )
-                                dao.upsertDraft(
-                                    draft.copy(
-                                        state = LocalStoryDraft.State.Published.storageValue,
-                                        publishedUri = published.uri,
-                                        publishedCid = published.cid,
-                                        lastError = null,
-                                    ),
-                                )
+                                isPublishing = true
+                                var attemptDraft: LocalStoryDraft? = null
+                                try {
+                                    val (frozen, export) = editorWrites.withLock {
+                                        editorStore.freeze(checkNotNull(activeDraft), composition)
+                                    }
+                                    val draft = frozen.copy(state = LocalStoryDraft.State.Publishing.storageValue, lastError = null)
+                                    dao.upsertDraft(draft)
+                                    activeDraft = draft
+                                    attemptDraft = draft
+                                    val recordKey = checkNotNull(draft.recordKey)
+                                    val published = auth.publishStory(
+                                        jpegData = export,
+                                        createdAt = Instant.ofEpochMilli(
+                                            draft.createdAtEpochMillis,
+                                        ),
+                                        recordKey = recordKey,
+                                    )
+                                    dao.upsertDraft(
+                                        draft.copy(
+                                            state = LocalStoryDraft.State.Published.storageValue,
+                                            publishedUri = published.uri,
+                                            publishedCid = published.cid,
+                                            lastError = null,
+                                        ),
+                                    )
 
-                                val shouldSave = shouldSavePhoto
-                                val message = if (shouldSave) {
-                                    runCatching {
-                                        PhotoLibrarySaver.save(context, export)
-                                    }.fold(
-                                        onSuccess = {
-                                            "Your Story Is Live and Saved to Photos."
-                                        },
-                                        onFailure = {
-                                            "Your Story Is Live, but It Couldn’t Be Saved to Photos."
-                                        },
+                                    val shouldSave = shouldSavePhoto && !skipLegacyPhotoSaveOnce
+                                    val message = if (shouldSave) {
+                                        runCatching {
+                                            PhotoLibrarySaver.save(context, export)
+                                        }.fold(
+                                            onSuccess = {
+                                                "Your Story Is Live and Saved to Photos."
+                                            },
+                                            onFailure = {
+                                                "Your Story Is Live, but It Couldn’t Be Saved to Photos."
+                                            },
+                                        )
+                                    } else if (shouldSavePhoto) {
+                                        "Your Story Is Live, but It Couldn’t Be Saved to Photos."
+                                    } else {
+                                        "Your Story Is Live."
+                                    }
+                                    saveThisPhoto = false
+                                    activeDraft = null
+                                    capturedJpeg = null
+                                    composition = StoryComposition()
+                                    stickerAssets = emptyMap()
+                                    snackbar.showSnackbar(message)
+                                } catch (error: Throwable) {
+                                    val detail = error.localizedMessage
+                                        ?: "The story could not be posted."
+                                    attemptDraft?.let { draft ->
+                                        val failed = draft.copy(
+                                            state = LocalStoryDraft.State.Failed.storageValue,
+                                            lastError = detail,
+                                        )
+                                        dao.upsertDraft(failed)
+                                        activeDraft = failed
+                                    }
+                                    snackbar.showSnackbar(
+                                        "Your Story Couldn’t Be Posted. Tap the Checkmark to Try Again.",
                                     )
-                                } else {
-                                    "Your Story Is Live."
+                                } finally {
+                                    isPublishing = false
+                                    skipLegacyPhotoSaveOnce = false
                                 }
-                                saveThisPhoto = false
-                                activeDraft = null
-                                capturedJpeg = null
-                                composition = StoryComposition()
-                                stickerAssets = emptyMap()
-                                snackbar.showSnackbar(message)
-                            } catch (error: Throwable) {
-                                val detail = error.localizedMessage
-                                    ?: "The story could not be posted."
-                                attemptDraft?.let { draft ->
-                                    val failed = draft.copy(
-                                        state = LocalStoryDraft.State.Failed.storageValue,
-                                        lastError = detail,
-                                    )
-                                    dao.upsertDraft(failed)
-                                    activeDraft = failed
-                                }
-                                snackbar.showSnackbar(
-                                    "Your Story Couldn’t Be Posted. Tap the Checkmark to Try Again.",
-                                )
-                            } finally {
-                                isPublishing = false
                             }
                         }
+                        val hasLegacyPhotoPermission =
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            ) == PackageManager.PERMISSION_GRANTED
+                        if (
+                            shouldRequestLegacyPhotoLibraryPermission(
+                                sdkInt = Build.VERSION.SDK_INT,
+                                shouldSavePhoto = shouldSavePhoto,
+                                hasPermission = hasLegacyPhotoPermission,
+                            )
+                        ) {
+                            pendingLegacyPhotoPermissionAction = publishAction
+                            legacyPhotoPermissionLauncher.launch(
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            )
+                            return@post
+                        }
+                        publishAction()
                     },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
@@ -541,6 +648,24 @@ private fun CameraScreen(auth: OAuthSessionManager) {
             )
         }
     }
+}
+
+private fun openExternalLink(context: Context, url: String): Boolean {
+    val uri = Uri.parse(url)
+    val openedInCustomTab = runCatching {
+        CustomTabsIntent.Builder()
+            .setShowTitle(true)
+            .build()
+            .launchUrl(context, uri)
+    }.isSuccess
+
+    if (openedInCustomTab) return true
+
+    return runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE),
+        )
+    }.isSuccess
 }
 
 private fun capturePhoto(

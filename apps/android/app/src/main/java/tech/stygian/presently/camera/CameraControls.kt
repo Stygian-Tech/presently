@@ -352,6 +352,9 @@ internal fun CameraSettingsSheet(
     onPreferenceSelected: (SaveToPhotosPreference) -> Unit,
     onDefaultCameraSelected: (DefaultCamera) -> Unit,
     onOpenFeedbackBoard: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit,
+    onOpenTerms: () -> Unit,
+    onOpenSupport: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -435,6 +438,35 @@ internal fun CameraSettingsSheet(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Open Feedback Board")
+            }
+
+            Text(
+                "About & Support",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                "Learn how Presently handles your data, review the terms, or get help.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onOpenPrivacyPolicy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Privacy Policy")
+            }
+            OutlinedButton(
+                onClick = onOpenTerms,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Terms")
+            }
+            OutlinedButton(
+                onClick = onOpenSupport,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Support")
             }
         }
     }

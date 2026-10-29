@@ -13,6 +13,7 @@
 		428DDC5896099565A7E6850D /* PresentlyCaptureExtension.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = 18C62D3DA51BDD4AC3DF41E6 /* PresentlyCaptureExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4C26DFF826ACC8C48C0BD58F /* OAuthDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BAB1E6E2F59642B42E3DE4D /* OAuthDiscovery.swift */; };
 		51DFFC88A487C79FF6AC7622 /* OAuthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFC425D92697D224FDA7AED /* OAuthModels.swift */; };
+		568C7F41C9C6951FA5686A73 /* ControlAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 51E93ABAB92BA12723EFC636 /* ControlAssets.xcassets */; };
 		58AD5E8C3F277CFD27060108 /* OAuthSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58AF028905EE7821A59A9F1B /* OAuthSessionManager.swift */; };
 		6A652C21D224601216E58CD9 /* PresentlyCaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */; };
 		76500A7F963D25248439F0B2 /* PhotoLibrarySaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E15815BF2DCA11AFA272D709 /* PhotoLibrarySaver.swift */; };
@@ -26,6 +27,7 @@
 		A961ED2B4BC75548D1D59381 /* PresentlyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64319EA167BD70178267DA5C /* PresentlyApp.swift */; };
 		B6D37D564714A50AA0EA7E0E /* OAuthConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E93D49D37F46FF3BE1FFD887 /* OAuthConfiguration.swift */; };
 		B7BFDC8B45903445BA66CDF0 /* PresentlyCaptureIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */; };
+		C0122FAC478D72C8B3861842 /* ControlAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 51E93ABAB92BA12723EFC636 /* ControlAssets.xcassets */; };
 		D0FD446C52945AEE4065469F /* OAuthHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E1B2A90BD8252C5B347D830 /* OAuthHTTPClient.swift */; };
 		D221195AF11100171BE62F50 /* StoryEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D0CAB4F02AEAF3453270FA8 /* StoryEditorTests.swift */; };
 		D3E8061DF4CFD55BDD13EAAD /* PresentlyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 777DF989A90DF48182DAA24A /* PresentlyKit */; };
@@ -97,11 +99,13 @@
 		373A5090A3325512D060C6B7 /* PresentlyCaptureExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyCaptureExtension.swift; sourceTree = "<group>"; };
 		38B62273AD256B7E1308AEF0 /* PresentlyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PresentlyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		510D74BC3F0298491C9E8CD0 /* PresentlyCaptureIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyCaptureIntent.swift; sourceTree = "<group>"; };
+		51E93ABAB92BA12723EFC636 /* ControlAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ControlAssets.xcassets; sourceTree = "<group>"; };
 		58AF028905EE7821A59A9F1B /* OAuthSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthSessionManager.swift; sourceTree = "<group>"; };
 		5C19C46E316A7D27E6499A79 /* ATProtoOAuthClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ATProtoOAuthClient.swift; sourceTree = "<group>"; };
 		64319EA167BD70178267DA5C /* PresentlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyApp.swift; sourceTree = "<group>"; };
 		71700D3CF062076280CC22F1 /* OAuthSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthSecureStore.swift; sourceTree = "<group>"; };
 		7E1B2A90BD8252C5B347D830 /* OAuthHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthHTTPClient.swift; sourceTree = "<group>"; };
+		9031F889C09F114E04A684AC /* presently */ = {isa = PBXFileReference; lastKnownFileType = folder; name = presently; path = ../..; sourceTree = SOURCE_ROOT; };
 		A08F3917CA9B236EDF9ADC2C /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		A478D1D9DDB0115BF9F408EF /* DPoP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DPoP.swift; sourceTree = "<group>"; };
 		ADB40AE90080E041CD96530D /* LocalStoryDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalStoryDraft.swift; sourceTree = "<group>"; };
@@ -109,7 +113,6 @@
 		BE2B605D28A456F04965115E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C2C8752D8D776FE4AC5DB389 /* Presently.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Presently.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E15815BF2DCA11AFA272D709 /* PhotoLibrarySaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibrarySaver.swift; sourceTree = "<group>"; };
-		E52B1C311ED5F7BDB0D1535F /* presently-staged-verification */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "presently-staged-verification"; path = ../..; sourceTree = SOURCE_ROOT; };
 		E92B489899837D0B298F780B /* PresentlyControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyControls.swift; sourceTree = "<group>"; };
 		E93D49D37F46FF3BE1FFD887 /* OAuthConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthConfiguration.swift; sourceTree = "<group>"; };
 		F163D2FE11E08BD65E5170BE /* PresentlyLockedCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentlyLockedCameraView.swift; sourceTree = "<group>"; };
@@ -225,6 +228,7 @@
 			isa = PBXGroup;
 			children = (
 				F962FC7879277CC62A48833F /* Assets.xcassets */,
+				51E93ABAB92BA12723EFC636 /* ControlAssets.xcassets */,
 				FCF0E7842C334255D73722EF /* Info.plist */,
 			);
 			path = Resources;
@@ -266,7 +270,7 @@
 		CEC8895AE9119497C56E51E9 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				E52B1C311ED5F7BDB0D1535F /* presently-staged-verification */,
+				9031F889C09F114E04A684AC /* presently */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -340,6 +344,7 @@
 			buildConfigurationList = D629C27FE69A8E045C6854D3 /* Build configuration list for PBXNativeTarget "PresentlyControls" */;
 			buildPhases = (
 				787B855DA229C04ED4D2E8C0 /* Sources */,
+				ED3F05644E8695F400A58B0A /* Resources */,
 			);
 			buildRules = (
 			);
@@ -410,6 +415,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				E0BF4B9B9F3209926B8B4BAF /* Assets.xcassets in Resources */,
+				C0122FAC478D72C8B3861842 /* ControlAssets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ED3F05644E8695F400A58B0A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				568C7F41C9C6951FA5686A73 /* ControlAssets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

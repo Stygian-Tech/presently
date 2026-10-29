@@ -9,6 +9,7 @@ struct CameraScreen: View {
     @Environment(OAuthSessionManager.self) private var auth
     @Query private var storedSettings: [AppSettings]
     @State private var camera = CameraController()
+    private let captureLaunch = PresentlyCaptureLaunch.shared
     @State private var feedbackMessage: String?
     @State private var presentedSheet: CameraSheet?
     @State private var saveThisPhoto = false
@@ -16,6 +17,7 @@ struct CameraScreen: View {
     @State private var isPublishing = false
     @State private var activeDraft: LocalStoryDraft?
     @State private var editor: StoryEditorSession?
+    @State private var isEditingTextInEditor = false
     @Environment(\.scenePhase) private var scenePhase
 
     private var settings: AppSettings? {
@@ -34,7 +36,7 @@ struct CameraScreen: View {
         }
         .task {
             ensureSettingsExist()
-            restoreDraft()
+            if captureLaunch.requestID == 0 { restoreDraft() }
             let defaultCamera = settings?.defaultCamera ?? .back
             if #available(iOS 18.0, *) {
                 try? await PresentlyCaptureIntent.updateAppContext(
@@ -46,6 +48,17 @@ struct CameraScreen: View {
             await camera.start(
                 preferredFacing: defaultCamera.cameraFacing
             )
+        }
+        .onChange(of: captureLaunch.requestID) { _, _ in
+            if let editor {
+                editor.endTransform()
+                persistComposition(editor.composition)
+            }
+            // Keep the pending draft in the store while opening a fresh viewfinder.
+            editor = nil
+            activeDraft = nil
+            isEditingTextInEditor = false
+            camera.retake()
         }
         .onChange(of: camera.capturedPhotoData) { _, data in
             guard let data else { return }
@@ -89,8 +102,12 @@ struct CameraScreen: View {
         ) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(feedbackMessage ?? "")
+            if let feedbackMessage {
+                Text(feedbackMessage)
+            }
         }
+        .sensoryFeedback(.impact(weight: .medium), trigger: camera.capturedPhotoData != nil)
+        .sensoryFeedback(.selection, trigger: camera.zoomFactor)
     }
 
     private var liveCamera: some View {
@@ -105,29 +122,57 @@ struct CameraScreen: View {
     }
 
     private func review(editor: StoryEditorSession) -> some View {
-        VStack(spacing: 0) {
-            StoryEditorView(session: editor, isEditable: !isPublishing && activeDraft?.recordKey == nil, onError: {
-                feedbackMessage = $0
-            })
-            VStack(spacing: 14) {
-                saveToPhotosReviewOption
-                HStack {
-                    Button("Discard", systemImage: "xmark", role: .cancel) { discardDraft() }
-                        .disabled(isPublishing || !editor.canFinishEditing)
-                    Spacer()
-                    if isPublishing { ProgressView().tint(.white) }
-                    Button(isPublishing ? "Posting…" : "Post Photo", systemImage: "checkmark") {
-                        Task { await prepareAndPublish() }
+        NavigationStack {
+            StoryEditorView(
+                session: editor,
+                isEditable: !isPublishing && activeDraft?.recordKey == nil,
+                onError: { feedbackMessage = $0 },
+                onEditingChanged: { isEditingTextInEditor = $0 }
+            )
+            .overlay(alignment: .bottom) {
+                if !isEditingTextInEditor {
+                    VStack(spacing: 14) {
+                        saveToPhotosReviewOption
+                        HStack(spacing: 12) {
+                            Button(role: .destructive) {
+                                discardDraft()
+                            } label: {
+                                Label("Discard", systemImage: "trash")
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .modifier(PresentlyGlassButtonStyle())
+                            .tint(.red)
+                            .controlSize(.large)
+                            .disabled(isPublishing || !editor.canFinishEditing)
+
+                            Button {
+                                Task { await prepareAndPublish() }
+                            } label: {
+                                Group {
+                                    if isPublishing {
+                                        ProgressView()
+                                    } else {
+                                        Label("Post Photo", systemImage: "paperplane.fill")
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .modifier(PresentlyGlassButtonStyle(prominent: true))
+                            .controlSize(.large)
+                            .accessibilityLabel(isPublishing ? "Posting photo" : "Post Photo")
+                            .disabled(isPublishing || !editor.canFinishEditing)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
-                    .disabled(isPublishing || !editor.canFinishEditing)
+                    .padding()
+                    .frame(maxWidth: 560)
+                    .frame(maxWidth: .infinity)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .padding()
-            .background(.regularMaterial)
+            .toolbar(.hidden, for: .navigationBar)
+            .preferredColorScheme(.dark)
         }
-        .preferredColorScheme(.dark)
     }
 
     private func attachEditor(to draft: LocalStoryDraft) throws {
@@ -146,7 +191,6 @@ struct CameraScreen: View {
     }
 
     private func beginDraft(data: Data) {
-        // A new camera capture owns a new draft; originals are never replaced by the flattened export.
         do {
             let draft = LocalStoryDraft(imageData: data)
             draft.originalImageData = data
@@ -252,7 +296,15 @@ struct CameraScreen: View {
             else {
                 continue
             }
-            modelContext.insert(LocalStoryDraft(imageData: data))
+            do {
+                let draft = LocalStoryDraft(imageData: data)
+                draft.originalImageData = data
+                draft.editorData = try StoryComposition(usesStoryCrop: true).encoded()
+                modelContext.insert(draft)
+            } catch {
+                feedbackMessage = "Camera Control capture could not be prepared: \(error.localizedDescription)"
+                return
+            }
         }
 
         guard !imageFiles.isEmpty else { return }
@@ -429,6 +481,23 @@ private struct CameraSettingsSheet: View {
                     Text("Default Camera")
                 } footer: {
                     Text("The camera switch button still changes cameras for the current session.")
+                }
+
+                if #available(iOS 18.0, *) {
+                    Section("Quick camera access") {
+                        Label("Control Center", systemImage: "switch.2")
+                        Text("Open Control Center, touch and hold an empty area, then choose Add a Control and search for Presently.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Label("Lock Screen", systemImage: "lock")
+                        Text("Touch and hold the Lock Screen, choose Customize, then replace a bottom control with Presently Camera.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Label("Camera Control", systemImage: "camera")
+                        Text("On a supported iPhone, open Settings → Camera → Camera Control and select Presently.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section {

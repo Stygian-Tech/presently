@@ -6,22 +6,77 @@ plugins {
     id("androidx.room")
 }
 
+fun releaseValue(gradleProperty: String, environmentVariable: String) =
+    providers.gradleProperty(gradleProperty)
+        .orElse(providers.environmentVariable(environmentVariable))
+
+val releaseVersionCode =
+    releaseValue("presentlyVersionCode", "PRESENTLY_VERSION_CODE")
+        .orElse("1")
+        .map { value ->
+            value.toIntOrNull()?.takeIf { it > 0 }
+                ?: error("Presently versionCode must be a positive integer, but was '$value'.")
+        }
+
+val releaseVersionName =
+    releaseValue("presentlyVersionName", "PRESENTLY_VERSION_NAME")
+        .orElse("0.1.0")
+
+val releaseStoreFile =
+    releaseValue("presentlyUploadStoreFile", "PRESENTLY_UPLOAD_STORE_FILE")
+val releaseStorePassword =
+    releaseValue("presentlyUploadStorePassword", "PRESENTLY_UPLOAD_STORE_PASSWORD")
+val releaseKeyAlias =
+    releaseValue("presentlyUploadKeyAlias", "PRESENTLY_UPLOAD_KEY_ALIAS")
+val releaseKeyPassword =
+    releaseValue("presentlyUploadKeyPassword", "PRESENTLY_UPLOAD_KEY_PASSWORD")
+
+val releaseSigningValues =
+    listOf(
+        releaseStoreFile,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword,
+    )
+val releaseSigningConfigured =
+    releaseSigningValues.all { value -> value.isPresent && value.get().isNotBlank() }
+
 android {
     namespace = "tech.stygian.presently"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "tech.stygian.presently"
         minSdk = 23
-        targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        targetSdk = 36
+        versionCode = releaseVersionCode.get()
+        versionName = releaseVersionName.get()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
         compose = true
+    }
+
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile.get())
+                storePassword = releaseStorePassword.get()
+                keyAlias = releaseKeyAlias.get()
+                keyPassword = releaseKeyPassword.get()
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 
     compileOptions {
@@ -85,4 +140,19 @@ room {
 
 kapt {
     correctErrorTypes = true
+}
+
+tasks.matching { task ->
+    task.name == "bundleRelease" || task.name == "assembleRelease"
+}.configureEach {
+    doFirst {
+        check(releaseSigningConfigured) {
+            "Release signing is not configured. Set PRESENTLY_UPLOAD_STORE_FILE, " +
+                "PRESENTLY_UPLOAD_STORE_PASSWORD, PRESENTLY_UPLOAD_KEY_ALIAS, and " +
+                "PRESENTLY_UPLOAD_KEY_PASSWORD (or their Gradle property equivalents)."
+        }
+        check(rootProject.file(releaseStoreFile.get()).isFile) {
+            "The configured Presently upload keystore does not exist."
+        }
+    }
 }

@@ -22,7 +22,7 @@ apps/
   ios/              SwiftUI, AVFoundation, and SwiftData
   web/              Astro marketing, privacy, terms, and support site
 services/
-  oauth-worker/     Go ATProto OAuth metadata service for Vercel containers
+  oauth-worker/     Go ATProto OAuth metadata service deployed on Railway
 docs/
   MVP_PLAN.md       Delivery plan, boundaries, and acceptance criteria
   STORY_CONTRACT.md Published Flashes record contract used by both clients
@@ -83,16 +83,24 @@ cd apps/android
 cd services/oauth-worker
 go test ./...
 go build ./...
-docker build -f Dockerfile.vercel .
+docker build .
 ```
 
 The stable production client ID is
 `https://oauth.presently.photo/oauth/client-metadata.json`, with native callback
 `photo.presently.oauth:/oauth/callback`. Configure the production environment
-from `services/oauth-worker/.env.example`. Vercel detects the root
-`vercel.json` Services configuration and builds the OAuth worker independently
-from `services/oauth-worker/Dockerfile.vercel`. Requests for
-`oauth.presently.photo` route to this service.
+from `services/oauth-worker/.env.example`. Railway project `Presently`, service
+`OAuth`, builds the service from `services/oauth-worker/Dockerfile` and gates
+deployments on `/healthz` using `services/oauth-worker/railway.json`.
+
+To deploy from the repository root:
+
+```sh
+railway up services/oauth-worker --path-as-root \
+  --project 295eacc5-e30f-4e96-8ba8-e6603558506e \
+  --environment production \
+  --service OAuth
+```
 
 ### Marketing Site
 
@@ -103,10 +111,9 @@ npm run check
 npm run build
 ```
 
-The root Vercel Services configuration builds the Astro site independently and
-routes non-OAuth domains, including `presently.photo`, to the web service.
-Pushes to `main` deploy both services through the project's Vercel Git
-integration.
+The `Deploy Marketing Site to Wisp` GitHub workflow builds the static Astro
+site and deploys it to Wisp. Marque maps `presently.photo` to Wisp while
+`oauth.presently.photo` maps to the Railway OAuth service.
 
 ## Reference material
 

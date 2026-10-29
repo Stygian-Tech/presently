@@ -16,4 +16,27 @@ class PresentlyLinksTest {
             uri.path,
         )
     }
+
+    @Test
+    fun privacyPolicyUsesTheCanonicalPresentlyPage() {
+        assertPresentlyPage(PresentlyLinks.PrivacyPolicy, "/privacy/")
+    }
+
+    @Test
+    fun termsUseTheCanonicalPresentlyPage() {
+        assertPresentlyPage(PresentlyLinks.Terms, "/terms/")
+    }
+
+    @Test
+    fun supportUsesTheCanonicalPresentlyPage() {
+        assertPresentlyPage(PresentlyLinks.Support, "/support/")
+    }
+
+    private fun assertPresentlyPage(url: String, expectedPath: String) {
+        val uri = URI(url)
+
+        assertEquals("https", uri.scheme)
+        assertEquals("presently.photo", uri.host)
+        assertEquals(expectedPath, uri.path)
+    }
 }

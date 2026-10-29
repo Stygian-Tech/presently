@@ -32,10 +32,16 @@ targets:
         NSPhotoLibraryAddUsageDescription: Presently saves a copy only when you enable Save to Photos.
         UILaunchScreen: {}
         UIRequiresFullScreen: true
+        UIRequiresFullScreenIgnoredStartingWithVersion: "27.0"
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.stygian.presently
@@ -54,6 +60,7 @@ targets:
     deploymentTarget: "18.0"
     sources:
       - PresentlyControls
+      - path: Presently/Resources/ControlAssets.xcassets
       - path: Presently/SystemIntegration/PresentlyCaptureIntent.swift
         group: Presently/SystemIntegration
     info:
@@ -78,6 +85,7 @@ targets:
       path: PresentlyCaptureExtension/Info.plist
       properties:
         CFBundleDisplayName: Presently Camera
+        NSCameraUsageDescription: Presently uses the camera to capture a story from the Lock Screen.
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.securecapture
     settings:
